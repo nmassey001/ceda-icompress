@@ -31,7 +31,7 @@ cpdef bitshave(np.ndarray A, int NSB):
     if not (A.dtype in [np.float16, "<f2", ">f2",
                         np.float32, "<f4", ">f4",
                         np.float64, "<f8", ">f8"]):
-        raise TypeError("Unsupported type for bitrounddown : {}".format(
+        raise TypeError("Unsupported type for bitshave : {}".format(
                             A.dtype
                         ))
 

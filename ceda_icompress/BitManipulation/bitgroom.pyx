@@ -9,7 +9,7 @@ cpdef bitgroom(np.ndarray A, int NSB):
     the array.  The quantisation is acheived by setting bits to alternate zeros
     and ones after the NSB bit.  (NSB = number of significant bits).
     This is known as bit grooming.
-    Once exception is not to do any bit grooming on the exact representation of
+    One exception is not to do any bit grooming on the exact representation of
     zero.
 
     Code inspired by https://github.com/esowc/Elefridge.jl
@@ -35,7 +35,7 @@ cpdef bitgroom(np.ndarray A, int NSB):
     if not (A.dtype in [np.float16, "<f2", ">f2",
                         np.float32, "<f4", ">f4",
                         np.float64, "<f8", ">f8"]):
-        raise TypeError("Unsupported type for bitrounddown : {}".format(
+        raise TypeError("Unsupported type for bitgroom : {}".format(
                             A.dtype
                         ))
 
