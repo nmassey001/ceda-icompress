@@ -1,7 +1,6 @@
 import numpy as np
-cimport numpy as np
 
-cpdef entropy(np.ndarray P, int base=2):
+def entropy(P, base=2):
     """Calculate the information entropy, as defined is Shannon Information
     Theory, with an optional base to take the log.
 
@@ -15,11 +14,6 @@ cpdef entropy(np.ndarray P, int base=2):
     Returns:
         float: the entropy of the input probabilities
     """
-
-    cdef np.float64_t H             # return entropy
-    cdef int x                      # counter
-    cdef np.float64_t B             # log base
-    cdef np.ndarray Hr
     B = np.log(base)
 
     # initialise entropy

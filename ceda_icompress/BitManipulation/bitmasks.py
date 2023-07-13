@@ -1,10 +1,9 @@
 # bit masks for float16, float32 and float64
 import numpy as np
-cimport numpy as np
 
 import sys
 
-cpdef get_sigexp_bitmask(t=np.float32):
+def get_sigexp_bitmask(t=np.float32):
     """Get the bitmask for the sign bit and exponent for different datatypes.
 
     Args:
@@ -46,7 +45,7 @@ cpdef get_sigexp_bitmask(t=np.float32):
     return mask
 
 
-cpdef get_man_bitmask(t=np.float32, NSB=64):
+def get_man_bitmask(t=np.float32, NSB=64):
     """Get the bitmask for the mantissa that is truncated after the NSB
 
     Args:
@@ -99,7 +98,7 @@ cpdef get_man_bitmask(t=np.float32, NSB=64):
     return mask
 
 
-cpdef get_bitgroom_bitmask(t=np.float32):
+def get_bitgroom_bitmask(t=np.float32):
     """Get the bitmask for bitgrooming.  This is then logical or-ed with the
     get_man_bitmask.  The bitgrooming bitmasks can be defined as just constants
     of alternate zeros then ones for the length of the mantissa for the

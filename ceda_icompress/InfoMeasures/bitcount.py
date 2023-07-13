@@ -1,9 +1,8 @@
 import numpy as np
-cimport numpy as np
 
 from ceda_icompress.InfoMeasures.whichUint import whichUint
 
-cpdef bitcount(np.ndarray A):
+def bitcount(A):
     """Calculate the number of times that bit=1 occurs at each bit position in
     the type of the input array, across all array elements.
     For example, in a 32 bit type, count how many 1s are in position 0 across
@@ -21,13 +20,6 @@ cpdef bitcount(np.ndarray A):
                         32               for an int / float.
                         64               for a long int / double
     """
-    # type declarations
-    cdef np.ndarray Av
-    cdef np.ndarray Ar
-    cdef np.ndarray N
-    cdef int b                          # bit counter
-    cdef int n_bits                     # number of bits
-
     # get the UInt type of the array so we can create the count array
     t_uint = whichUint(A.dtype)             # type
     n_bits = A.itemsize*8                   # number of bits per array element
@@ -47,7 +39,7 @@ cpdef bitcount(np.ndarray A):
     return N
 
 
-cpdef bitpaircount(np.ndarray A):
+def bitpaircount(A):
     """Calculate the number of times that bitpairs occur at each bit position in
     the type of the input array, across all array elements.
     The bit pairs are: 00, 01, 10, 11
@@ -70,15 +62,6 @@ cpdef bitpaircount(np.ndarray A):
                   2 : 10
                   3 : 11
     """
-    # type declarations
-    cdef np.ndarray Av
-    cdef np.ndarray N
-    cdef np.ndarray Ar
-    cdef np.ndarray bitpair
-    cdef int b                          # bit counter
-    cdef int m                          # pair counter
-    cdef int n_bits                     # number of bits
-
     # get the UInt type of the array so we can create the count array
     t_uint = whichUint(A.dtype)             # type
     n_bits = A.itemsize*8                   # number of bits per array element

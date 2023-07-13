@@ -1,9 +1,9 @@
 import numpy as np
-cimport numpy as np
-from bitcount import bitcount, bitpaircount
-from entropy import entropy
 
-cpdef bitinformation(np.ndarray A):
+from ceda_icompress.InfoMeasures.bitcount import bitcount, bitpaircount
+from ceda_icompress.InfoMeasures.entropy import entropy
+
+def bitinformation(A):
     """Calculate the bitwise information content, as defined in Shannon
     Information Theory, and on the webpage:
         https://github.com/esowc/Elefridge.jl.
@@ -27,24 +27,6 @@ cpdef bitinformation(np.ndarray A):
     Returns:
         float: the bitinformation of the input array
     """
-    cdef int N
-    cdef np.ndarray Av
-    cdef np.ndarray n1
-    cdef np.ndarray n0
-    cdef np.ndarray q0
-    cdef np.ndarray q1
-    cdef np.ndarray npair
-    cdef np.ndarray pcond
-    cdef np.ndarray H
-    cdef np.ndarray H0
-    cdef np.ndarray H1
-    cdef np.ndarray qi
-    cdef np.ndarray pi0
-    cdef np.ndarray pi1
-    cdef np.ndarray I
-    cdef int i
-    cdef int entropy_calls = 0
-
     N = A.size               # number of elements in the array
     n1 = bitcount(A)[0:-1]   # number of ones in each bit-position
     n0 = N-n1                # number of zeros in each bit-position

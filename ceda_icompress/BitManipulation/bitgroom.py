@@ -1,10 +1,11 @@
 import numpy as np
-cimport numpy as np
 
 from ceda_icompress.InfoMeasures.whichUint import whichUint
-from bitmasks import get_sigexp_bitmask, get_man_bitmask, get_bitgroom_bitmask
+from ceda_icompress.BitManipulation.bitmasks import (
+    get_sigexp_bitmask, get_man_bitmask, get_bitgroom_bitmask
+)
 
-cpdef bitgroom(np.ndarray A, int NSB):
+def bitgroom(A, NSB):
     """Reduce the information content in an array by quantising each element in
     the array.  The quantisation is acheived by setting bits to alternate zeros
     and ones after the NSB bit.  (NSB = number of significant bits).
@@ -24,12 +25,6 @@ cpdef bitgroom(np.ndarray A, int NSB):
     Returns:
         numpy array: the quantised array
     """
-
-    # type declarations
-    cdef np.ndarray Av
-    cdef np.ndarray Ar
-    cdef int n_bits
-    cdef int x              # loop counter
 
     # check that the type is compatible, either a float16, float32 or float64
     if not (A.dtype in [np.float16, "<f2", ">f2",

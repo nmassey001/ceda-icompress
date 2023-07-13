@@ -3,7 +3,7 @@ import click
 from netCDF4 import Dataset
 import sys
 import json
-from cic_analyse import load_dataset
+from ceda_icompress.CLI.cic_analyse import load_dataset
 from ceda_icompress.BitManipulation.bitshave import bitshave
 from ceda_icompress.BitManipulation.bitgroom import bitgroom
 from ceda_icompress.InfoMeasures.getsigmanexp import getsigmanexp

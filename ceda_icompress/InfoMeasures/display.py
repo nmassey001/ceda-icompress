@@ -1,7 +1,4 @@
 ##### Lovely colours! ######
-import numpy as np
-cimport numpy as np
-
 from ceda_icompress.InfoMeasures.getsigmanexp import getsigmanexp
 
 class bcolors:
@@ -46,8 +43,7 @@ bg_color_bar = ['\033[40m',     # black
                 '\033[47m',     # white (light grey)
                 '\033[107m']    # bright white
 
-def displayBitCount(np.ndarray B, int sig, list man, list exp, 
-                    int sized, int W=3, reverse=False):
+def displayBitCount(B, sig, man, exp, sized, W=3, reverse=False):
     """Display the bit count of an array using colours for the sign bit,
     mantissa and exponent.
 
@@ -99,8 +95,7 @@ def displayBitCount(np.ndarray B, int sig, list man, list exp,
     S += bcolors.ENDC
     print(S)
 
-def displayBitCountVertical(np.ndarray B, int sig, list man, list exp, 
-                            int sized, int W=3, reverse=False):
+def displayBitCountVertical(B, sig, man, exp, sized, W=3, reverse=False):
     """Display the bit count of an array using colours for the sign bit,
     mantissa and exponent but in a vertical format
 
@@ -166,7 +161,7 @@ def displayBitCountLegend():
     S += bcolors.ENDC + " - mantissa" + bcolors.ENDC
     print(S)
 
-def displayBitInformation(np.ndarray B, reverse=False):
+def displayBitInformation(B, reverse=False):
     """Display a colour for each bit information bit."""
     S = ""
     if reverse:
@@ -204,7 +199,7 @@ def displayColorBar():
     S += bcolors.ENDC + " - colour bar"
     print(S)
 
-def displayBitPosition(int L, int W=3, reverse=False):
+def displayBitPosition(L, W=3, reverse=False):
     """Display the bit position in an easy to read manner."""
     S = ""
     if reverse:

@@ -1,9 +1,8 @@
 import numpy as np
-cimport numpy as np
 
 from ceda_icompress.InfoMeasures.whichUint import whichUint
 
-cpdef bitentropy(np.ndarray A, int base=2):
+def bitentropy(A, base=2):
     """Calculate the bit entropy of a numpy array.
     Code converted to Python from https://github.com/esowc/Elefridge.jl
 
@@ -14,13 +13,6 @@ cpdef bitentropy(np.ndarray A, int base=2):
     Returns:
         float: the bit entropy of the array.
     """
-    # type declarations
-    cdef np.ndarray Av
-    cdef np.int n
-    cdef np.float64_t E
-    cdef np.float64_t m
-    cdef np.float64_t p
-    cdef int x
 
     # get the type of the array when converted to a UInt
     t_uint = whichUint(A.dtype)
@@ -47,7 +39,4 @@ cpdef bitentropy(np.ndarray A, int base=2):
 
     # convert to given base, 2 i.e. [bit] by default
     E /= np.log(base)
-
-    print(E)
-
     return E
