@@ -79,7 +79,12 @@ setup(
     name='ceda_icompress',
     version='0.1.1',
     packages=['ceda_icompress'],
-    install_requires=['numpy', 'cython'],
+    install_requires=[
+        'numpy', 
+        'cython', 
+        'netcdf4', 
+        'click'
+    ],
     ext_modules=cythonize(extensions),
     include_package_data=True,
     license='BSD License',  # example license

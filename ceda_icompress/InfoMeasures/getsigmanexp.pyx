@@ -3,7 +3,7 @@ import sys
 import numpy as np
 cimport numpy as np
 
-def getbord(np.ndarray A):
+def getbord(np.dtype T):
     """Get the byte order for array A.
 
     Inputs:
@@ -20,11 +20,11 @@ def getbord(np.ndarray A):
         '=': sys.byteorder,
         '|': 'not applicable',
     }
-    bord = endian_map[A.dtype.byteorder]
+    bord = endian_map[chr(T.byteorder)]
     return bord
 
 
-def getsigmanexp(np.ndarray A):
+def getsigmanexp(np.dtype T):
     """Get the positions of the sign bit, exponent and mantissa in the
     bitstring of the dtype of the array A.
 
@@ -35,10 +35,10 @@ def getsigmanexp(np.ndarray A):
     Returns:
         tuple: the positions of the sign, mantissa and exponent (in that order)
     """
-    bord = getbord(A)
+    bord = getbord(T)
     # get the type and size (in bits)
-    typed = A.dtype.kind
-    sized = A.dtype.itemsize * 8
+    typed = chr(T.kind)
+    sized = T.itemsize * 8
     # man (start, end)
     # exp (start, end)
     # sig pos
@@ -46,34 +46,34 @@ def getsigmanexp(np.ndarray A):
         # signed int
         if bord == 'big':
             sig = 0
-            man = (1,sized)
-            exp = (-1,-1)
+            man = [1,sized]
+            exp = [-1,-1]
         elif bord == 'little':
             sig = sized-1
-            man = (0, sized-1)
-            exp = (-1,-1)
+            man = [0, sized-1]
+            exp = [-1,-1]
     elif typed == "u":
         # unsigned int
         sig = -1
-        man = (0, sized)
-        exp = (-1,-1)
+        man = [0, sized]
+        exp = [-1,-1]
     elif typed == "f":
         # floating point
         sig = 0
         if sized == 16:             # half precision
-            exp = (1,6)
-            man = (6,16)
+            exp = [1,6]
+            man = [6,16]
         elif sized == 32:           # single precision
-            exp = (1,9)
-            man = (9,32)
+            exp = [1,9]
+            man = [9,32]
         elif sized == 64:           # double precision
-            exp = (1,12)
-            man = (12,64)
+            exp = [1,12]
+            man = [12,64]
         if bord == 'little':
             # like the above, but backwards
             sig = sized-1
-            man = (sized-man[1], sized-man[0])
-            exp = (sized-exp[1], sized-exp[0])
+            man = [sized-man[1], sized-man[0]]
+            exp = [sized-exp[1], sized-exp[0]]
     else:
         raise TypeError("Unsupported type: {}".format(typed))
     return (sig, man, exp)

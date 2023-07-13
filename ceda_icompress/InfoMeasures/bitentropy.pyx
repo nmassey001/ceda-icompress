@@ -34,7 +34,7 @@ cpdef bitentropy(np.ndarray A, int base=2):
     E = 0.0     # entropy
     m = 1.0     # counter
 
-    for x in range(n-1):
+    for x in np.arange(0, n-1):
         if Av[x] == Av[x+1]:
             m += 1.0
         else:
@@ -47,5 +47,7 @@ cpdef bitentropy(np.ndarray A, int base=2):
 
     # convert to given base, 2 i.e. [bit] by default
     E /= np.log(base)
+
+    print(E)
 
     return E

@@ -43,6 +43,7 @@ cpdef bitinformation(np.ndarray A):
     cdef np.ndarray pi1
     cdef np.ndarray I
     cdef int i
+    cdef int entropy_calls = 0
 
     N = A.size               # number of elements in the array
     n1 = bitcount(A)[0:-1]   # number of ones in each bit-position

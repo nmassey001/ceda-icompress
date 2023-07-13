@@ -19,15 +19,14 @@ cpdef entropy(np.ndarray P, int base=2):
     cdef np.float64_t H             # return entropy
     cdef int x                      # counter
     cdef np.float64_t B             # log base
+    cdef np.ndarray Hr
     B = np.log(base)
 
     # initialise entropy
     H = 0.0
-
-    for x in range(P.size):
-        # calculate the entropy 1.0 and 0.0 contribute 0 to the entropy
-        if P[x] > 0.0 and P[x] < 1.0:
-            H += P[x] * (np.log(P[x]) / B)
+    idx = np.where((P > 0.0) & (P < 1.0))
+    Hr = P[idx] * (np.log(P[idx]) / B)
+    H = np.sum(Hr)
 
     # return the entropy
     return -1.0 * H

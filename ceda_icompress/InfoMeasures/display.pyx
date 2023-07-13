@@ -46,13 +46,19 @@ bg_color_bar = ['\033[40m',     # black
                 '\033[47m',     # white (light grey)
                 '\033[107m']    # bright white
 
-def displayBitCount(np.ndarray B, np.ndarray A):
+def displayBitCount(np.ndarray B, int sig, list man, list exp, 
+                    int sized, int W=3, reverse=False):
     """Display the bit count of an array using colours for the sign bit,
     mantissa and exponent.
 
     Inputs:
         B (numpy array): array of bitcounts
-        A (numpy array): original array bitcounts were taken from
+        sig (int)      : position of sign bit
+        man (list<int>): positions of mantissa bits
+        exp (list<int>): positions of exponent bits
+        sized (int)    : size of data item in bytes
+        W (int)        : format width of output field
+        reverse (bool) : reverse the bit order (e.g. 31->0, rather than 0->31)
 
     Returns:
         None
@@ -64,13 +70,24 @@ def displayBitCount(np.ndarray B, np.ndarray A):
             exponent = white on red
             mantissa = white on blue
         Integer (non floating-point) types will be all white on blue (mantissa)
+
+    Notes:
+        sig, man, exp can be found by:
+            sig, man, exp = getsigmanexp(A)
+        sized can be calculated by:
+            sized = A.dtype.itemsize
     """
-    # get the sign, exponent and mantissa positions in the bitstring
-    sig, man, exp = getsigmanexp(A)
-    sized = A.dtype.itemsize * 8
     # print the sign bit
     S = ""
-    for i in range(0, sized):
+    if reverse:
+        st = sized*8-1
+        ed = -1
+        step = -1
+    else:
+        st = 0
+        ed = sized*8
+        step = 1
+    for i in range(st, ed, step):
         # check if we should change colour
         if i == sig:
             S += bcolors.fg.YELLOW + bcolors.bg.GREY
@@ -78,9 +95,66 @@ def displayBitCount(np.ndarray B, np.ndarray A):
             S += bcolors.fg.WHITE + bcolors.bg.BLUE
         elif i >= exp[0] and i < exp[1]:
             S += bcolors.fg.WHITE + bcolors.bg.RED
-        S += "{:3d}".format(B[i])
+        S += "{:{W}d}".format(B[i], W=W)
     S += bcolors.ENDC
     print(S)
+
+def displayBitCountVertical(np.ndarray B, int sig, list man, list exp, 
+                            int sized, int W=3, reverse=False):
+    """Display the bit count of an array using colours for the sign bit,
+    mantissa and exponent but in a vertical format
+
+    Inputs:
+        B (numpy array): array of bitcounts
+        sig (int)      : bit position of sign bit
+        man (list<int>): bit positions of mantissa bits
+        exp (list<int>): bit positions of exponent bits
+        sized (int)    : size of item in number of bytes
+        W (int)        : format width of output field
+        reverse (bool) : reverse the bit order (e.g. 31->0, rather than 0->31)
+
+    Returns:
+        None
+
+    Outputs:
+        The array of bit counts, coloured to reflect the position in the
+        original array
+            sign     = yellow on grey
+            exponent = white on red
+            mantissa = white on blue
+        Integer (non floating-point) types will be all white on blue (mantissa)
+
+    Notes:
+        sig, man, exp can be found by:
+            sig, man, exp = getsigmanexp(A)
+        sized can be calculated by:
+            sized = A.dtype.itemsize
+    """
+    if reverse:
+        st = sized*8-1
+        ed = -1
+        step = -1
+    else:
+        st = 0
+        ed = sized*8
+        step = 1
+    for i in range(st, ed, step):
+        S = ""
+        if i % 2 == 0:  # evens - white on grey
+            S += bcolors.fg.WHITE + bcolors.bg.GREY
+        else:
+            S += bcolors.fg.BLACK + bcolors.bg.GREEN
+        S += "{:3d}".format(i)
+        # check if we should change colour
+        if i == sig:
+            S += bcolors.fg.YELLOW + bcolors.bg.GREY
+        elif i >= man[0] and i < man[1]:
+            S += bcolors.fg.WHITE + bcolors.bg.BLUE
+        elif i >= exp[0] and i < exp[1]:
+            S += bcolors.fg.WHITE + bcolors.bg.RED
+        S += "{:{W}d}".format(B[i], W=W)
+        S += bcolors.ENDC
+        print(S)
 
 def displayBitCountLegend():
     """Display the legend for the bit count printout"""
@@ -92,10 +166,18 @@ def displayBitCountLegend():
     S += bcolors.ENDC + " - mantissa" + bcolors.ENDC
     print(S)
 
-def displayBitInformation(np.ndarray B):
+def displayBitInformation(np.ndarray B, reverse=False):
     """Display a colour for each bit information bit."""
     S = ""
-    for i in range(0, B.size):
+    if reverse:
+        st = B.size-1
+        ed = -1
+        step = -1
+    else:
+        st = 0
+        ed = B.size
+        step = 1
+    for i in range(st, ed, step):
         # calculate the position in the colour bar table
         # bit information is from 0 to 1 so simply multiply and cast to int
         lbg = len(bg_color_bar)
@@ -122,14 +204,22 @@ def displayColorBar():
     S += bcolors.ENDC + " - colour bar"
     print(S)
 
-def displayBitPosition(np.ndarray B):
+def displayBitPosition(int L, int W=3, reverse=False):
     """Display the bit position in an easy to read manner."""
     S = ""
-    for i in range(0, B.size):
+    if reverse:
+        st = L-1
+        ed = -1
+        step = -1
+    else:
+        st = 0
+        ed = L
+        step = 1
+    for i in range(st, ed, step):
         if i % 2 == 0:  # evens - white on grey
             S += bcolors.fg.WHITE + bcolors.bg.GREY
         else:
             S += bcolors.fg.BLACK + bcolors.bg.GREEN
-        S += "{:3d}".format(i)
+        S += "{:{W}d}".format(i, W=W)
     S += bcolors.ENDC
     print(S)
