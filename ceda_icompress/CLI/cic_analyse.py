@@ -5,9 +5,11 @@ import sys
 from datetime import datetime
 import json
 import time
-from ceda_icompress.InfoMeasures.bitentropy import bitentropy
+import numpy as np
+from ceda_icompress.InfoMeasures.bitcount import bitcount
 from ceda_icompress.InfoMeasures.bitinformation import bitinformation
 from ceda_icompress.InfoMeasures.getsigmanexp import getsigmanexp
+from ceda_icompress.CLI import CIC_FILE_FORMAT_VERSION
 
 def load_dataset(file):
     try:
@@ -45,7 +47,7 @@ def get_vars(grp, var):
         vars = [grp.variables[v] for v in grp.variables]
     return vars
 
-def analyse_var(var, tstart, tend):
+def analyse_var(var, tstart, tend, level, axis, debug=False):
     """Analyse the variable to get the bitcount and the bitinformation"""
     # form the index / slice
     s = []
@@ -53,30 +55,30 @@ def analyse_var(var, tstart, tend):
 
     for d in var.dimensions:
         if d == "time" or d == "t":
-            if tstart is not None:
-                ts = tstart
-            else:
-                ts = 0
-            if tend is not None:
-                te = tend
-            else:
-                te = -1
-            s.append(slice(ts,te,1))
+            s.append(slice(tstart,tend))
+        elif "lev" in d and level is not None:
+            ls = level
+            le = ls + 1
+            s.append(slice(ls,le))
         else:
-            s.append(slice(0,-1,1))
-    # get the data from the slice
+            s.append(slice(None))
     data = var[s]
-    print(f"Analysing variable with shape: {data.shape}")
-    # get the bit entropy
-    # be = bitentropy(data)
-    # print(be)
+    if debug:
+        print(f"Analysing variable {var.name}, with shape: {data.shape}")
+
     # get the bit information
     st = time.time()
-    bi = bitinformation(data)
+    bi = bitinformation(data, axis)
     ed = time.time()
-    print("TIME: ", ed-st)
+    if debug:
+        print("    Bit information time taken: ", ed-st)
     # get the sign, exponent and mantissa bits
     sig, man, exp = getsigmanexp(data.dtype)
+    var_dict["time_start"] = tstart
+    var_dict["time_end"] = tend
+    var_dict["level"] = level
+    var_dict["axis"] = axis
+    var_dict["elements"] = int(data.count())
     var_dict["type"] = data.dtype.name
     var_dict["itemsize"] = data.dtype.itemsize          # bits
     var_dict["byteorder"] = data.dtype.byteorder
@@ -98,10 +100,16 @@ def analyse_var(var, tstart, tend):
               help="Timestep to start analysis at")
 @click.option("-e", "--tend", default=None, type=int,
               help="Timestep to end analysis at")
+@click.option("-l", "--level", default=None, type=int,
+              help="Level number to analyse")
+@click.option("-x", "--axis", default=0, type=int,
+              help="Axis number to analyse")
 @click.option("-o", "--output", default=None, type=str,
               help="Output file name")
+@click.option("-D", "--debug", default=False, is_flag=True,
+              help="Provide debug info")
 @click.argument("file", type=str)
-def analyse(file, var, group, tstart, tend, output):
+def analyse(file, var, group, tstart, tend, level, axis, output, debug):
     # open the output file - do this before the processing so an error in 
     # created before the (long) processing time if the exceptions are caught
     if output:
@@ -125,12 +133,14 @@ def analyse(file, var, group, tstart, tend, output):
     analysis_dict = {"Analysis" : "BitInformation",
                      "date" : datetime.now().isoformat(),
                      "file" : file,
-                     "groups" : {}}
+                     "groups" : {},
+                     "version" : CIC_FILE_FORMAT_VERSION,
+                    }
     for g in grps:
         grp_dict = {"vars" : {}}
         vars = get_vars(g, var)
         for v in vars:
-            var_dict = analyse_var(v, tstart, tend)
+            var_dict = analyse_var(v, tstart, tend, level, axis, debug)
             grp_dict["vars"][v.name] = var_dict
         analysis_dict["groups"][g.name] = grp_dict
     
@@ -138,7 +148,8 @@ def analyse(file, var, group, tstart, tend, output):
     if output:
         json.dump(analysis_dict, fh)
         fh.close()
-        print(f"Output analysis file written {output}")
+        if debug:
+            print(f"Output analysis file written: {output}")
     else:
         print(analysis_dict)
 

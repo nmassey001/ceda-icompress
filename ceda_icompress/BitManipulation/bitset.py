@@ -42,7 +42,7 @@ def bitset(A, NSB):
     Av = A.view(dtype=t_uint)
     # for bitset the mask is logical or-ed with the array
     # do the bitwise or between the mask and the uint array
-    Ar = np.bitwise_or(Av, mask)
+    Ar = np.ma.bitwise_or(Av, mask)
     # convert back to the original type
     Ar = Ar.view(dtype=A.dtype)
     return Ar

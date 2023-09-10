@@ -21,8 +21,8 @@ def bitentropy(A, base=2):
     Av = A.view(dtype=t_uint).flatten()
     Av.sort()
 
-    # get the size of the array
-    n = Av.size
+    # get the number of non masked values in the array
+    n = Av.count()
     E = 0.0     # entropy
     m = 1.0     # counter
 

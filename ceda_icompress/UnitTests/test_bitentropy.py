@@ -25,7 +25,7 @@ class bitentropyTest(unittest.TestCase):
     def test_zeros(self):
         # generate a load of zeros
         for typ in get_test_types():
-            zdist = np.zeros(
+            zdist = np.ma.zeros(
                 shape = (DIM_LEN, DIM_LEN, DIM_LEN),
                 dtype = typ
             )
@@ -36,7 +36,7 @@ class bitentropyTest(unittest.TestCase):
     def test_ones(self):
         # generate a load of zeros
         for typ in get_test_types():
-            zdist = np.ones(
+            zdist = np.ma.ones(
                 shape = (DIM_LEN, DIM_LEN, DIM_LEN),
                 dtype = typ
             )

@@ -22,7 +22,7 @@ setup(
     ],
     include_package_data=True,
     license='BSD License',  # example license
-    description='A command line client to access the joint-storage data migration app on JASMIN.',
+    description='A command line client to access data compression routines.',
     long_description=README,
     url='http://www.ceda.ac.uk/',
     author='Neil Massey',

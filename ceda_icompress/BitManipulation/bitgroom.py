@@ -52,8 +52,8 @@ def bitgroom(A, NSB):
 
     # for bitgroom, we logical AND the same mask as bitshave (set all to zero)
     # then we logical OR with the groom mask
-    Ar = np.bitwise_and(Av, mask)
-    Ar = np.bitwise_or(Ar, groom_mask)
+    Ar = np.ma.bitwise_and(Av, mask)
+    Ar = np.ma.bitwise_or(Ar, groom_mask)
 
     ### REMEMBER TO MASK OFF THE ZEROS! ###
     # convert back to the original type

@@ -49,6 +49,10 @@ def getsigmanexp(T):
             sig = sized-1
             man = [0, sized-1]
             exp = [-1,-1]
+        else:
+            sig = 0
+            man = [1, sized]
+            exp = [-1,-1]
     elif typed == "u":
         # unsigned int
         sig = -1

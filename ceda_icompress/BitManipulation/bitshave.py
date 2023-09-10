@@ -41,7 +41,7 @@ def bitshave(A, NSB):
     # get a view of the array as the uint
     Av = A.view(dtype=t_uint)
     # do the bitwise and between the mask and the uint array
-    Ar = np.bitwise_and(Av, mask)
+    Ar = np.ma.bitwise_and(Av, mask)
     # convert back to the original type
     Ar = Ar.view(dtype=A.dtype)
     return Ar

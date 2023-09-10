@@ -154,14 +154,24 @@ def displayBitCountVertical(B, sig, man, exp, sized, W=3, reverse=False):
 def displayBitCountLegend():
     """Display the legend for the bit count printout"""
     S  = "\t" + bcolors.fg.YELLOW + bcolors.bg.GREY + " 0 "
-    S += bcolors.ENDC + " - sign bit\n"
+    S += bcolors.ENDC + " - sign bit"
     S += "\t" + bcolors.fg.WHITE + bcolors.bg.RED + " 1 "
-    S += bcolors.ENDC + " - exponent\n"
+    S += bcolors.ENDC + " - exponent"
     S += "\t" + bcolors.fg.WHITE + bcolors.bg.BLUE + " 2 "
     S += bcolors.ENDC + " - mantissa" + bcolors.ENDC
     print(S)
 
-def displayBitInformation(B, reverse=False):
+def displayBitInfoLegend():
+    """Display the legend for the bit count printout"""
+    S  = "\t" + bcolors.fg.YELLOW + " 0 "
+    S += bcolors.ENDC + " - sign bit"
+    S += "\t" + bcolors.fg.RED + " 1 "
+    S += bcolors.ENDC + " - exponent"
+    S += "\t" + bcolors.fg.WHITE + " 2 "
+    S += bcolors.ENDC + " - mantissa" + bcolors.ENDC
+    print(S)
+
+def displayBitInformation(B, sig, man, exp, reverse=False):
     """Display a colour for each bit information bit."""
     S = ""
     if reverse:
@@ -177,11 +187,19 @@ def displayBitInformation(B, reverse=False):
         # bit information is from 0 to 1 so simply multiply and cast to int
         lbg = len(bg_color_bar)
         cb_p = int(B[i] * lbg)
-        if (cb_p >= lbg):
-            cb_p = lbg - 1
-        S += bg_color_bar[cb_p]
-        S += "{:3.0f}".format(B[i]*100)
-    S += bcolors.ENDC
+        if B[i] > 0:
+            if (cb_p >= lbg):
+                cb_p = lbg - 1
+            S += bg_color_bar[cb_p]
+        if i == sig:
+            S += bcolors.fg.YELLOW
+        elif i >= man[0] and i < man[1]:
+            S += bcolors.fg.WHITE
+        elif i >= exp[0] and i < exp[1]:
+            S += bcolors.fg.RED
+
+        S += "{:4.0f}".format(B[i]*100)
+        S += bcolors.ENDC
     print(S)
 
 def displayColorBar():
@@ -199,7 +217,7 @@ def displayColorBar():
     S += bcolors.ENDC + " - colour bar"
     print(S)
 
-def displayBitPosition(L, W=3, reverse=False):
+def displayBitPosition(L, W, sig, man, exp, reverse=False):
     """Display the bit position in an easy to read manner."""
     S = ""
     if reverse:
@@ -211,10 +229,17 @@ def displayBitPosition(L, W=3, reverse=False):
         ed = L
         step = 1
     for i in range(st, ed, step):
+        if i == sig:
+            S += bcolors.fg.YELLOW
+        elif i >= man[0] and i < man[1]:
+            S += bcolors.fg.WHITE
+        elif i >= exp[0] and i < exp[1]:
+            S += bcolors.fg.RED
+
         if i % 2 == 0:  # evens - white on grey
-            S += bcolors.fg.WHITE + bcolors.bg.GREY
+            S += bcolors.bg.GREY
         else:
-            S += bcolors.fg.BLACK + bcolors.bg.GREEN
+            S += bcolors.bg.GREEN
         S += "{:{W}d}".format(i, W=W)
     S += bcolors.ENDC
     print(S)

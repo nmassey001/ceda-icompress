@@ -3,35 +3,28 @@ import numpy as np
 
 import sys
 
-def get_sigexp_bitmask(t=np.float32):
-    """Get the bitmask for the sign bit and exponent for different datatypes.
+def get_sig_bitmask(t=np.float32):
+    """Get the bitmask for the sign bit for different datatypes.
 
     Args:
-        t (numpy dtype): type of array to get sign and exponent bitmask for
+        t (numpy dtype): type of array to get sign bitmask for
 
     Returns:
-        int16|int32|int64: the bitmask for the sign and exponent, other bits are
+        int16|int32|int64: the bitmask for the sign, other bits are
         zero.
     """
-    # construct the bitmasks as though little endian, do a byteswap at the
-    # end if big endian
-    # Code used to generate masks (for float64):
-    #   mask = np.uint64(0)
-    #   for x in range(52,64):
-    #       mask = mask | np.uint64(1 << x)
-
     if (t in [np.float16, "<f2", ">f2"]):
-        # float16 has 1 sign bit, 5 bit exponent, 10 bit mantissa, so bits
-        # 10 to 15 are masked to 1, 0 to 9 are masked to 0
-        mask = np.uint16(0xFC00)
+        # float16 has 1 sign bit, 5 bit exponent, 10 bit mantissa, so bit
+        # 15 is masked to 1, 0 to 14 are masked to 0
+        mask = np.uint16(0x8000)
     elif (t in [np.float32, "<f4", ">f4"]):
-        # float32 has 1 sign bit, 8 bit exponent, 23 bit mantissa, so bits
-        # 23 to 31 are masked to 1, 0 to 22 are masked to 0
-        mask = np.uint32(0xFF800000)
+        # float32 has 1 sign bit, 8 bit exponent, 23 bit mantissa, so bit
+        # 31 is masked to 1, 0 to 30 are masked to 0
+        mask = np.uint32(0x80000000)
     elif (t in [np.float64, "<f8", ">f8"]):
-        # float64 has 1 sign bit, 11 bit exponent, 52 bit mantissa, so bits
-        # 52 to 63 are masked to 1, 0 to 51 are masked to 0
-        mask = np.uint64(0xFFF0000000000000)
+        # float64 has 1 sign bit, 11 bit exponent, 52 bit mantissa, so bit
+        # 63 is masked to 1, 0 to 62 are masked to 0
+        mask = np.uint64(0x8000000000000000)
     else:
         raise TypeError("Unsupported type for get_bitmask : {}".format(t))
 
@@ -42,6 +35,54 @@ def get_sigexp_bitmask(t=np.float32):
     elif t.byteorder == '=' and sys.byteorder == 'big':
         # system is a big endian
         mask = mask.byteswap()
+    return mask
+
+def get_exp_bitmask(t=np.float32):
+    """Get the bitmask for the exponent bit for different datatypes.
+
+    Args:
+        t (numpy dtype): type of array to get exponent bitmask for
+
+    Returns:
+        int16|int32|int64: the bitmask for the exponent, other bits are
+        zero.
+    """
+    if (t in [np.float16, "<f2", ">f2"]):
+        # float16 has 1 sign bit, 5 bit exponent, 10 bit mantissa, so bits
+        # 10 to 14 are masked to 1, 0 to 9 are masked to 0, as is bit 15
+        mask = np.uint16(0x7C00)
+    elif (t in [np.float32, "<f4", ">f4"]):
+        # float32 has 1 sign bit, 8 bit exponent, 23 bit mantissa, so bits
+        # 23 to 30 are masked to 1, 0 to 22 are masked to 0, as is bit 31
+        mask = np.uint32(0x7F800000)
+    elif (t in [np.float64, "<f8", ">f8"]):
+        # float64 has 1 sign bit, 11 bit exponent, 52 bit mantissa, so bits
+        # 52 to 62 are masked to 1, 0 to 51 are masked to 0, as is bit 63
+        mask = np.uint64(0x7FF0000000000000)
+    else:
+        raise TypeError("Unsupported type for get_bitmask : {}".format(t))
+
+    # do a byteswap if neccessary
+    if t.byteorder == '>':
+        # data type is big endian
+        mask = mask.byteswap()
+    elif t.byteorder == '=' and sys.byteorder == 'big':
+        # system is a big endian
+        mask = mask.byteswap()
+    return mask    
+
+def get_sigexp_bitmask(t=np.float32):
+    """Get the bitmask for the sign bit and exponent for different datatypes.
+
+    Args:
+        t (numpy dtype): type of array to get sign and exponent bitmask for
+
+    Returns:
+        int16|int32|int64: the bitmask for the sign and exponent, other bits are
+        zero.
+    """
+    # mask here is just the sign and exponent masks ORed together
+    mask = get_sig_bitmask(t) | get_man_bitmask(t)
     return mask
 
 

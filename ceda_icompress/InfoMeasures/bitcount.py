@@ -33,22 +33,22 @@ def bitcount(A):
         # define the mask based on the datatype
         mask = t_uint(0b1) << b
         # mask with the whole array
-        Ar = np.bitwise_and(Av, mask)
+        Ar = np.ma.bitwise_and(Av, mask)
         # count
         N[b] = np.count_nonzero(Ar)
     return N
 
 
-def bitpaircount(A):
+def bitpaircount(A, B):
     """Calculate the number of times that bitpairs occur at each bit position in
-    the type of the input array, across all array elements.
+    the input array (A) compared to the array (B).
     The bit pairs are: 00, 01, 10, 11
     For example, in a 32 bit type, count:
-      1. how many 00s are in position n & n+1 (as a pair)
-      2. how many 01s are in position n & n+1 (as a pair)
-      3. how many 10s are in position n & n+1 (as a pair)
-      4. how many 11s are in position n & n+1 (as a pair)
-    Repeat for n=0..N-1, where N is the size of the flattened array
+      1. how many 00s are in position An & Bn
+      2. how many 01s are in position An & Bn
+      3. how many 10s are in position An & Bn
+      4. how many 11s are in position An & Bn
+    Repeat for n=0..N, where N is the maximum size of the two flattened arrays
 
     Returns:
      numpy array(4,B): the bit pair count of the array.
@@ -65,19 +65,31 @@ def bitpaircount(A):
     # get the UInt type of the array so we can create the count array
     t_uint = whichUint(A.dtype)             # type
     n_bits = A.itemsize*8                   # number of bits per array element
-    N = np.zeros((4, n_bits-1,), dtype=np.int32) # count array
-    # convert the array to a view of the array in the UInt type and flatten it
+    N = np.zeros((4, n_bits,), dtype=np.int64) # count array
+
+    # 1. convert the arrays to a view of the array in the UInt type 
+    # 2. take a slice
+    # 3. then flatten it into a bitstream
+    # using view before a slice means that the array is not copied
     Av = A.view(dtype=t_uint).flatten()
+    Bv = B.view(dtype=t_uint).flatten()
 
     # count the bits in the position of each array
-    for b in np.arange(0, n_bits-1, dtype=t_uint):
-        # position mask for this bit pair
-        p_mask = t_uint(0b11) << b
-        # and it and then shift right by b to get just the bit pair
-        # in the 0 and 1 position in the binary string
-        Ar = np.bitwise_and(Av, p_mask)
-        bitpair = np.right_shift(Ar, b)
+    for b in np.arange(0, n_bits, dtype=t_uint):
+        # position mask for this bit
+        b_mask = t_uint(0b1) << b
+        # get the bit for A
+        Ar = np.ma.bitwise_and(Av, b_mask)
+        # get the bit for B
+        Br = np.ma.bitwise_and(Bv, b_mask)
+        # shift back for each array, A by b-1, B by b
+        # this forms the pairs when A + B
+        Ab = np.ma.right_shift(Ar, b-1)
+        Bb = np.ma.right_shift(Br, b)
+        bitpair = np.ma.bitwise_or(Ab, Bb)
         # count up the bit pairs
         for m in np.arange(0, 4, dtype=np.int32):
             N[m, b] += np.count_nonzero(bitpair == m)
+    # reshape the array to 2x2
+    N = N.reshape((2,2,n_bits))
     return N

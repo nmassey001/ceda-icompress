@@ -15,12 +15,9 @@ def entropy(P, base=2):
         float: the entropy of the input probabilities
     """
     B = np.log(base)
-
     # initialise entropy
-    H = 0.0
     idx = np.where((P > 0.0) & (P < 1.0))
-    Hr = P[idx] * (np.log(P[idx]) / B)
-    H = np.sum(Hr)
-
+    Hr = P[idx] * np.log(P[idx])
+    H = np.sum(Hr) / B
     # return the entropy
     return -1.0 * H
