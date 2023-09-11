@@ -50,8 +50,7 @@ class bitinformationTest(unittest.TestCase):
         )
         # calculate the infocontent - should be
         C = bitinformation(zdist)
-        print(C)
-#        assert(int(C) == 0.5 * DIM_LEN)
+        assert(int(C) == 0.5 * DIM_LEN)
 
 if __name__ == '__main__':
     unittest.main()

@@ -9,6 +9,7 @@ from ceda_icompress.CLI.cic_analyse import load_dataset
 from ceda_icompress.BitManipulation.bitshave import bitshave
 from ceda_icompress.BitManipulation.bitgroom import bitgroom
 from ceda_icompress.BitManipulation.bitset import bitset
+from ceda_icompress.InfoMeasures.keepbits import keepbits
 from ceda_icompress.CLI import CIC_FILE_FORMAT_VERSION
 
 COMPRESSION = 'zlib'
@@ -18,18 +19,6 @@ def copy_dim(input_dim, output_group):
         dimname = input_dim.name, 
         size = input_dim.size
     )
-    
-    
-def getNSB(bi, manbit, thresh=0.01):
-    """Get the number of significant bits to retain, from the bitInformation"""
-    NSB = 0
-    for i in range(manbit[0], manbit[1]):
-        if bi[i] > thresh:
-           break
-        NSB += 1
-    # bit information is in opposite order to bits
-    return manbit[1] - NSB
-
 
 def create_output_var(input_var, output_group, params, bit_manipulate):
     # get the fill value
@@ -90,11 +79,13 @@ def process_var(input_var, output_group, analysis, params):
             NSB = Va["retainbits"]
         # get BitInformation
         elif "bitinfo" in Va:
-            bi = Va["bitinfo"]
+            bi = np.array(Va["bitinfo"])
             # get the location of the mantissa bits
             manbit = Va["manbit"]
             # calculate the number of bits to retain
-            NSB = getNSB(bi, manbit, thresh=params["thresh"])
+            NSB = keepbits(
+                bi, manbit, elements=Va["elements"], ci=params["thresh"]
+            )
 
         if params["debug"]:
             print(f"Processing variable: {input_var.name}.  Retained bits: {NSB}")
@@ -176,9 +167,9 @@ def process(input_ds, output_ds, analysis, params):
 @click.option("-f", "--force", is_flag=True, 
               help="Force compression of file, even if input file does not " 
               "match the file named in the analysis")
-@click.option("-t", "--thresh", default=99.9, type=float, 
+@click.option("-t", "--thresh", default=99.0, type=float, 
               help="The bitinformation threshold - how much information to "
-                   "retain, in %. e.g. 99.9%")
+                   "retain, in %. default = 99.0%")
 @click.option("-I", "--conv_int", is_flag=True, default=False,
               help="Convert 64 bit integers to 32 bit integers")
 @click.option("-F", "--conv_float", is_flag=True, default=False,
@@ -272,7 +263,10 @@ def compress(file, analysis_file, deflate, force, conv_int, conv_float,
               "debug"      : debug,
               "pchunk"     : pchunk}
     if params["debug"]:
-        print(params)
+        print(f"Processing compression on file: \n"
+              f"    {file}\n"
+              f"with parameters: \n"
+              f"    {params}")
     process(input_ds, output_ds, analysis, params)
 
 def main():

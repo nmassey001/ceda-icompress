@@ -34,6 +34,7 @@ def bitshave(A, NSB):
     t_uint = whichUint(A.dtype)
     # get the bit mask for the sign bit and exponent for the data type
     bit_mask = get_sigexp_bitmask(A.dtype)
+    print(bit_mask)
     # get the bit mask for the mantissa
     man_mask = get_man_bitmask(A.dtype, NSB)
     mask = bit_mask | man_mask

@@ -38,7 +38,7 @@ def get_sig_bitmask(t=np.float32):
     return mask
 
 def get_exp_bitmask(t=np.float32):
-    """Get the bitmask for the exponent bit for different datatypes.
+    """Get the bitmask for the exponent for different datatypes.
 
     Args:
         t (numpy dtype): type of array to get exponent bitmask for
@@ -82,9 +82,8 @@ def get_sigexp_bitmask(t=np.float32):
         zero.
     """
     # mask here is just the sign and exponent masks ORed together
-    mask = get_sig_bitmask(t) | get_man_bitmask(t)
+    mask = get_sig_bitmask(t) | get_exp_bitmask(t)
     return mask
-
 
 def get_man_bitmask(t=np.float32, NSB=64):
     """Get the bitmask for the mantissa that is truncated after the NSB

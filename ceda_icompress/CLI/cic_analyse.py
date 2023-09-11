@@ -49,9 +49,10 @@ def get_vars(grp, var):
 
 def analyse_var(var, tstart, tend, level, axis, debug=False):
     """Analyse the variable to get the bitcount and the bitinformation"""
+    # return dictionary
+    var_dict = {}
     # form the index / slice
     s = []
-    var_dict = {}
 
     for d in var.dimensions:
         if d == "time" or d == "t":
@@ -62,9 +63,21 @@ def analyse_var(var, tstart, tend, level, axis, debug=False):
             s.append(slice(ls,le))
         else:
             s.append(slice(None))
+    if len(s) == 0:
+        s = 0
+    elif len(s) == 1:
+        s = s[0]
+    
     data = var[s]
+
     if debug:
         print(f"Analysing variable {var.name}, with shape: {data.shape}")
+
+    # right shift on 64 bit numbers & python types not supported by numpy
+    if data.dtype in [np.uint64, np.int64, np.float64, '<f8', '>f8', float, int]:
+        print(f"    variable {var.name} is 64 bit and compression is not "
+               "currently supported")
+        return var_dict # empty var dict
 
     # get the bit information
     st = time.time()
@@ -141,7 +154,8 @@ def analyse(file, var, group, tstart, tend, level, axis, output, debug):
         vars = get_vars(g, var)
         for v in vars:
             var_dict = analyse_var(v, tstart, tend, level, axis, debug)
-            grp_dict["vars"][v.name] = var_dict
+            if var_dict != {}:
+                grp_dict["vars"][v.name] = var_dict
         analysis_dict["groups"][g.name] = grp_dict
     
     # write to file
