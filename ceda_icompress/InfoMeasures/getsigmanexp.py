@@ -1,9 +1,6 @@
 import sys
 
-import numpy as np
-cimport numpy as np
-
-def getbord(np.dtype T):
+def getbord(T):
     """Get the byte order for array A.
 
     Inputs:
@@ -20,11 +17,11 @@ def getbord(np.dtype T):
         '=': sys.byteorder,
         '|': 'not applicable',
     }
-    bord = endian_map[chr(T.byteorder)]
+    bord = endian_map[T.byteorder]
     return bord
 
 
-def getsigmanexp(np.dtype T):
+def getsigmanexp(T):
     """Get the positions of the sign bit, exponent and mantissa in the
     bitstring of the dtype of the array A.
 
@@ -37,7 +34,7 @@ def getsigmanexp(np.dtype T):
     """
     bord = getbord(T)
     # get the type and size (in bits)
-    typed = chr(T.kind)
+    typed = T.kind
     sized = T.itemsize * 8
     # man (start, end)
     # exp (start, end)
@@ -51,6 +48,10 @@ def getsigmanexp(np.dtype T):
         elif bord == 'little':
             sig = sized-1
             man = [0, sized-1]
+            exp = [-1,-1]
+        else:
+            sig = 0
+            man = [1, sized]
             exp = [-1,-1]
     elif typed == "u":
         # unsigned int

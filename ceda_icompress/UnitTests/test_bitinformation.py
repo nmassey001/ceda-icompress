@@ -12,7 +12,7 @@ class bitinformationTest(unittest.TestCase):
     def test_zeros(self):
         for typ in get_test_types():
             # generate a load of zeros
-            zdist = np.zeros(
+            zdist = np.ma.zeros(
                 shape = (DIM_LEN,),
                 dtype = typ
             )
@@ -23,7 +23,7 @@ class bitinformationTest(unittest.TestCase):
     def test_ones(self):
         # generate a load of ones
         for typ in get_test_types():
-            zdist = np.ones(
+            zdist = np.ma.ones(
                 shape = (DIM_LEN,),
                 dtype = typ
             )
@@ -34,7 +34,7 @@ class bitinformationTest(unittest.TestCase):
     def test_all_same(self):
         # generate a load of the same value
         for typ in get_test_types():
-            zdist = np.ones(
+            zdist = np.ma.ones(
                 shape = (DIM_LEN,),
                 dtype = typ
             ) * 0.5
@@ -50,8 +50,7 @@ class bitinformationTest(unittest.TestCase):
         )
         # calculate the infocontent - should be
         C = bitinformation(zdist)
-        print(C)
-#        assert(int(C) == 0.5 * DIM_LEN)
+        assert(int(C) == 0.5 * DIM_LEN)
 
 if __name__ == '__main__':
     unittest.main()

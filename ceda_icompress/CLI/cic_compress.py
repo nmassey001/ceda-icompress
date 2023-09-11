@@ -3,10 +3,14 @@ import click
 from netCDF4 import Dataset
 import sys
 import json
-from cic_analyse import load_dataset
-from ceda_icompress.BitManipulation.bitshave import bitshave
-from ceda_icompress.BitManipulation.bitgroom import bitgroom
-from ceda_icompress.InfoMeasures.getsigmanexp import getsigmanexp
+import numpy as np
+import time
+from ceda_icompress.CLI.cic_analyse import load_dataset
+from ceda_icompress.BitManipulation.bitshave import BitShave
+from ceda_icompress.BitManipulation.bitgroom import BitGroom
+from ceda_icompress.BitManipulation.bitset import BitSet
+from ceda_icompress.BitManipulation.bitmask import BitMask
+from ceda_icompress.CLI import CIC_FILE_FORMAT_VERSION
 
 COMPRESSION = 'zlib'
 
@@ -15,19 +19,8 @@ def copy_dim(input_dim, output_group):
         dimname = input_dim.name, 
         size = input_dim.size
     )
-    
-def getNSB(bi, manbit, thresh=0.01):
-    """Get the number of significant bits to retain, from the bitInformation"""
-    NSB = 0
-    for i in range(manbit[1], manbit[0], -1):
-        NSB += 1
-        if bi[i] < thresh:
-            break
-    # bit information is in opposite order to bits
-    return manbit[0] + NSB
 
-
-def process_var(input_var, output_group, analysis, params):
+def create_output_var(input_var, output_group, params, bit_manipulate):
     # get the fill value
     try:
         mv = input_var.getncattr("_FillValue")
@@ -35,14 +28,25 @@ def process_var(input_var, output_group, analysis, params):
         mv = None
     # determine the chunking
     if input_var.chunking() == 'contiguous':
-        chunking = None
+         chunking = None
     else:
-        chunking = input_var.chunking()
+         chunking = input_var.chunking()
+    chunking = None
+
+    # what type should we use? If we aren't manipulating the bits then check
+    # whether we can convert a float64 to float32 or int64 to int32
+    var_type = input_var.dtype
+
+    if not bit_manipulate:
+        if input_var.dtype == np.int64 and params["conv_int"]:
+            var_type = np.int32
+        elif input_var.dtype == np.float64 and params["conv_float"]:
+            var_type = np.float32
 
     # create the output variable
     output_var = output_group.createVariable(
-        varname = input_var.name, 
-        datatype = input_var.dtype, 
+        varname = input_var.name,
+        datatype = var_type, 
         dimensions = input_var.dimensions,
         compression = COMPRESSION,
         complevel = params["deflate"],
@@ -52,23 +56,75 @@ def process_var(input_var, output_group, analysis, params):
         fill_value = mv,
         chunk_cache = input_var.get_var_chunk_cache()[0]
     )
+    return output_var
+
+def process_var(input_var, output_group, analysis, params):
+    # are we going to manipulate the bits?
+    bit_manipulate = (output_group.name in analysis["groups"] and 
+        input_var.name in analysis["groups"][output_group.name]["vars"])
+
+    # create the var
+    output_var = create_output_var(
+        input_var, output_group, params, bit_manipulate
+    )
 
     # copy the attributes from input_var to output_var
     output_var.setncatts(input_var.__dict__)
-
     # bitshave / bitgroom the data if the variable is in the analysis file
-    if (output_group.name in analysis["groups"] and 
-        input_var.name in analysis["groups"][output_group.name]["vars"]):
+    if (bit_manipulate):
         # get the variable analysis from the analysis dictionary
         Va = analysis["groups"][output_group.name]["vars"][input_var.name]
-        # get BitInformation
-        bi = Va["bitinfo"]
-        # get the location of the mantissa bits
-        manbit = Va["manbit"]
-        NSB = getNSB(bi, manbit, thresh=params["thresh"])
-        # copy the data from input_var to output_var, doing the bitshave or bitgroom
-        print(NSB)
-        output_var[:] = bitshave(input_var[:], NSB)
+        # check to see if number of bits to retain are enforced?
+        if "retainbits" in Va:
+            NSB = Va["retainbits"]
+        else:
+            NSB = -1
+
+        # get a pointer to the function to use
+        if params["method"] == "bitshave":
+            method = BitShave(input_var, NSB, Va, params["conf_int"])
+        elif params["method"] == "bitgroom":
+            method = BitGroom(input_var, NSB, Va, params["conf_int"])
+        elif params["method"] == "bitset":
+            method = BitSet(input_var, NSB, Va, params["conf_int"])
+        elif params["method"] == "bitmask":
+            method = BitMask(input_var, NSB, Va, params["conf_int"])
+
+        if params["debug"]:
+            print(
+                f"Processing variable: {input_var.name}\n"
+                f"    Retained bits  : {method.NSB}\n"
+                f"    Bitmask        : {method.mask:<032b}"
+            )
+        st = time.time()
+        # do each individual timestep to prevent memory swapping
+        t_dim = -1
+        s = []
+        dc = 0
+        for d in input_var.dimensions:
+            dim = output_group.dimensions[d]
+            if d == "time" or d == "t":
+                t_dim = dc
+                t_len = dim.size
+                # create the slices
+                s.append(slice(0,1,1))
+            else:
+                s.append(slice(0,dim.size,1))
+            dc += 1
+
+        pc = params["pchunk"]
+        if t_dim == -1:
+            # copy the data from input_var to output_var, doing the bitshave or bitgroom
+            # no time dimension so do all the variable at once
+            output_var[:] = method.process(input_var[:])
+        else:
+            for t in range(0, t_len, pc):
+                # modify the slice for the time dimensions
+                s[t_dim] = slice(t,t+pc,1)
+                output_var[s] = method.process(input_var[s])
+        ed = time.time()
+        if params["debug"]:
+            print("    Time taken     :", ed-st)
     else:
         output_var[:] = input_var[:]
 
@@ -109,18 +165,25 @@ def process(input_ds, output_ds, analysis, params):
 @click.option("-f", "--force", is_flag=True, 
               help="Force compression of file, even if input file does not " 
               "match the file named in the analysis")
-@click.option("-t", "--thresh", default=99.9, type=float, 
-              help="The bitinformation threshold - how much information to "
-                   "retain, in %. e.g. 99.9%")
+@click.option("-c", "--ci", default=0.99, type=float, 
+              help="The confidence interval - how much information to "
+                   "retain. default = 0.99 (99%)")
 @click.option("-I", "--conv_int", is_flag=True, default=False,
               help="Convert 64 bit integers to 32 bit integers")
 @click.option("-F", "--conv_float", is_flag=True, default=False,
               help="Convert 64 bit floats to 32 bit floats")
+@click.option("-m", "--method", default="bitshave", type=str,
+              help="Method to use for bit manipulation: bitshave | bitgroom | "
+                   "bitset | bitmask")
 @click.option("-o", "--output", default=None, type=str,
               help="Output file name")
+@click.option("-D", "--debug", default=False, is_flag=True,
+              help="Provide debug info")
+@click.option("-P", "--pchunk", default=10000, type=int,
+              help="Number of timesteps to process per iteration")
 @click.argument("file", type=str)
 def compress(file, analysis_file, deflate, force, conv_int, conv_float,
-             thresh, output):
+             ci, method, output, debug, pchunk):
     # Load the analysis file
     if analysis_file is None:
         print("Analysis file name not supplied")
@@ -136,6 +199,20 @@ def compress(file, analysis_file, deflate, force, conv_int, conv_float,
         analysis = json.load(fh)
     except Exception as e:
         print(f"Analysis file cannot be parsed: {str(analysis_file)}, reason: {e}")
+        sys.exit(0)
+
+    # check that the version matches
+    version_err_msg = (
+        f"Version of file: {analysis_file} does not match current version:"
+        f" {CIC_FILE_FORMAT_VERSION}.  Please recalculate analysis."
+    )
+    try:
+        version = analysis["version"]
+        if version != CIC_FILE_FORMAT_VERSION:
+            print(version_err_msg)
+            sys.exit(0)
+    except KeyError:
+        print(version_err_msg)
         sys.exit(0)
 
     # open the output file - do this before the processing so an error in 
@@ -162,14 +239,35 @@ def compress(file, analysis_file, deflate, force, conv_int, conv_float,
         print(f"Could not find file key in analysis file: {str(analysis_file)}")
         sys.exit(0)
 
+    # get the bit manipulation method
+    if method not in ["bitshave", "bitgroom", "bitset", "bitmask"]:
+        print(f"Unknown bit manipulation method: {method}")
+        sys.exit(0)
+
+    # check that we aren't going to overwrite the input with the output
+    if file == output:
+        print("Input and output file are the same")
+        sys.exit(0)
+
+
     # open the input file
     input_ds = load_dataset(file)
     # process it, along with the analysis]
-    params = {"thresh"     : (100.0-thresh)/100,
+    params = {"conf_int"   : ci,
               "deflate"    : deflate,
+              "method"     : method,
               "conv_int"   : conv_int,
-              "conv_float" : conv_float}
-    print(params)
+              "conv_float" : conv_float,
+              "debug"      : debug,
+              "pchunk"     : pchunk}
+    paramstr = ""
+    for p in params:
+        paramstr += f"    {p:<12}: {params[p]}\n"
+    if params["debug"]:
+        print(f"Processing compression on file: \n"
+              f"    {file}\n"
+              f"with parameters: \n"
+              f"{paramstr[:-1]}")
     process(input_ds, output_ds, analysis, params)
 
 def main():
