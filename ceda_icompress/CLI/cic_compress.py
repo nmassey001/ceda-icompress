@@ -92,8 +92,9 @@ def process_var(input_var, output_group, analysis, params):
 
         if params["debug"]:
             print(
-                f"Processing variable: {input_var.name}.  "
-                f"Retained bits: {method.NSB}"
+                f"Processing variable: {input_var.name}\n"
+                f"    Retained bits  : {method.NSB}\n"
+                f"    Bitmask        : {method.mask:<032b}"
             )
         st = time.time()
         # do each individual timestep to prevent memory swapping
@@ -123,7 +124,7 @@ def process_var(input_var, output_group, analysis, params):
                 output_var[s] = method.process(input_var[s])
         ed = time.time()
         if params["debug"]:
-            print("    Time taken: ", ed-st)
+            print("    Time taken     :", ed-st)
     else:
         output_var[:] = input_var[:]
 

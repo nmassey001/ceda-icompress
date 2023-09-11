@@ -7,6 +7,7 @@ from ceda_icompress.InfoMeasures.getsigmanexp import getsigmanexp
 from ceda_icompress.BitManipulation.bitmanip import (
     BitManipulation, BitManipulationError
 )
+from ceda_icompress.InfoMeasures.keepbits import free_entropy
 
 class BitMask(BitManipulation):
     """Reduce the information content in an array by rounding down (quantising)
@@ -35,7 +36,7 @@ class BitMask(BitManipulation):
             self.mask (int)       : the mask
             self.groom_mask (int) : the secondary mask
         """
-        super().__init__(A, NSB, analysis, ci)\
+        super().__init__(A, NSB, analysis, ci)
         # check we have the analysis data!
         if not "bitinfo" in analysis:
             raise BitManipulationError(
@@ -49,18 +50,25 @@ class BitMask(BitManipulation):
                 "No manbit key in analysis data"
             )
         manbit = analysis["manbit"]
-
+        # get the number of elements
+        if not "elements" in analysis:
+            raise BitManipulationError(
+                "No elements key in analysis data"
+            )
+        elements = analysis["elements"]
+        # see the keepbits function in Infomeasures.keepbits for more info
+        fe = free_entropy(elements, ci)
+        threshold = fe
         # build the mask
         self.mask = 0
         self.NSB = 0
         for i in range(manbit[0], manbit[1]):
-            if bi[i] > (1.0-ci):        # what is zero information?
+            if bi[i] > threshold:
                 self.mask |= (0b1 << i)
                 self.NSB += 1
         # add the sign and exponent mask
         bit_mask = get_sigexp_bitmask(A.dtype)
         self.mask |= bit_mask
-        print(f"{ci}, {self.mask:>032b}")
 
     def process(self, A):
         """

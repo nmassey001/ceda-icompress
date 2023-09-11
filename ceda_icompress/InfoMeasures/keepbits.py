@@ -33,14 +33,18 @@ def keepbits(bi, manbit, elements, ci):
     # see the methods section in Klower et al, 2021 for more details
     fe = free_entropy(elements, ci)
     # this is from the xbitinfo code and seems like a cheat!
-    threshold = np.maximum(fe, 1.5*np.max(bi[:3]))
+    # threshold = np.maximum(fe, 1.5*np.max(bi[:3]))
+    threshold = fe
     # mask the insignificant
     bi[np.where(bi <= threshold)] = 0.0
-    # find bits with ci amount of info
+    # calculate the cumulative infomation
     bi_sum = np.cumsum(bi)
+    # normalise
     bi_sum = bi_sum / bi_sum[-1]
+    # loop over
     i = manbit[0]
-    while (bi_sum[i] < 1.0-ci):
+    # find bits with ci amount of info
+    while (bi_sum[i] < 1.0-ci) and (i < manbit[1]):
         i += 1
 
     return manbit[1]-i
