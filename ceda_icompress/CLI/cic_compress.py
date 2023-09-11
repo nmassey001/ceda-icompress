@@ -6,10 +6,10 @@ import json
 import numpy as np
 import time
 from ceda_icompress.CLI.cic_analyse import load_dataset
-from ceda_icompress.BitManipulation.bitshave import bitshave
-from ceda_icompress.BitManipulation.bitgroom import bitgroom
-from ceda_icompress.BitManipulation.bitset import bitset
-from ceda_icompress.InfoMeasures.keepbits import keepbits
+from ceda_icompress.BitManipulation.bitshave import BitShave
+from ceda_icompress.BitManipulation.bitgroom import BitGroom
+from ceda_icompress.BitManipulation.bitset import BitSet
+from ceda_icompress.BitManipulation.bitmask import BitMask
 from ceda_icompress.CLI import CIC_FILE_FORMAT_VERSION
 
 COMPRESSION = 'zlib'
@@ -77,19 +77,24 @@ def process_var(input_var, output_group, analysis, params):
         # check to see if number of bits to retain are enforced?
         if "retainbits" in Va:
             NSB = Va["retainbits"]
-        # get BitInformation
-        elif "bitinfo" in Va:
-            bi = np.array(Va["bitinfo"])
-            # get the location of the mantissa bits
-            manbit = Va["manbit"]
-            # calculate the number of bits to retain
-            NSB = keepbits(
-                bi, manbit, elements=Va["elements"], ci=params["thresh"]
-            )
+        else:
+            NSB = -1
+
+        # get a pointer to the function to use
+        if params["method"] == "bitshave":
+            method = BitShave(input_var, NSB, Va, params["conf_int"])
+        elif params["method"] == "bitgroom":
+            method = BitGroom(input_var, NSB, Va, params["conf_int"])
+        elif params["method"] == "bitset":
+            method = BitSet(input_var, NSB, Va, params["conf_int"])
+        elif params["method"] == "bitmask":
+            method = BitMask(input_var, NSB, Va, params["conf_int"])
 
         if params["debug"]:
-            print(f"Processing variable: {input_var.name}.  Retained bits: {NSB}")
-
+            print(
+                f"Processing variable: {input_var.name}.  "
+                f"Retained bits: {method.NSB}"
+            )
         st = time.time()
         # do each individual timestep to prevent memory swapping
         t_dim = -1
@@ -106,24 +111,16 @@ def process_var(input_var, output_group, analysis, params):
                 s.append(slice(0,dim.size,1))
             dc += 1
 
-        # get a pointer to the function to use
-        if params["method"] == "bitshave":
-            method = bitshave
-        elif params["method"] == "bitgroom":
-            method = bitgroom
-        elif params["method"] == "bitset":
-            method = bitset
-
         pc = params["pchunk"]
         if t_dim == -1:
             # copy the data from input_var to output_var, doing the bitshave or bitgroom
             # no time dimension so do all the variable at once
-            output_var[:] = method(input_var[:], NSB)
+            output_var[:] = method.process(input_var[:])
         else:
             for t in range(0, t_len, pc):
                 # modify the slice for the time dimensions
                 s[t_dim] = slice(t,t+pc,1)
-                output_var[s] = method(input_var[s], NSB)
+                output_var[s] = method.process(input_var[s])
         ed = time.time()
         if params["debug"]:
             print("    Time taken: ", ed-st)
@@ -167,16 +164,16 @@ def process(input_ds, output_ds, analysis, params):
 @click.option("-f", "--force", is_flag=True, 
               help="Force compression of file, even if input file does not " 
               "match the file named in the analysis")
-@click.option("-t", "--thresh", default=99.0, type=float, 
-              help="The bitinformation threshold - how much information to "
-                   "retain, in %. default = 99.0%")
+@click.option("-c", "--ci", default=0.99, type=float, 
+              help="The confidence interval - how much information to "
+                   "retain. default = 0.99 (99%)")
 @click.option("-I", "--conv_int", is_flag=True, default=False,
               help="Convert 64 bit integers to 32 bit integers")
 @click.option("-F", "--conv_float", is_flag=True, default=False,
               help="Convert 64 bit floats to 32 bit floats")
 @click.option("-m", "--method", default="bitshave", type=str,
               help="Method to use for bit manipulation: bitshave | bitgroom | "
-                   "bitset")
+                   "bitset | bitmask")
 @click.option("-o", "--output", default=None, type=str,
               help="Output file name")
 @click.option("-D", "--debug", default=False, is_flag=True,
@@ -185,7 +182,7 @@ def process(input_ds, output_ds, analysis, params):
               help="Number of timesteps to process per iteration")
 @click.argument("file", type=str)
 def compress(file, analysis_file, deflate, force, conv_int, conv_float,
-             thresh, method, output, debug, pchunk):
+             ci, method, output, debug, pchunk):
     # Load the analysis file
     if analysis_file is None:
         print("Analysis file name not supplied")
@@ -242,7 +239,7 @@ def compress(file, analysis_file, deflate, force, conv_int, conv_float,
         sys.exit(0)
 
     # get the bit manipulation method
-    if method not in ["bitshave", "bitgroom", "bitset"]:
+    if method not in ["bitshave", "bitgroom", "bitset", "bitmask"]:
         print(f"Unknown bit manipulation method: {method}")
         sys.exit(0)
 
@@ -255,18 +252,21 @@ def compress(file, analysis_file, deflate, force, conv_int, conv_float,
     # open the input file
     input_ds = load_dataset(file)
     # process it, along with the analysis]
-    params = {"thresh"     : (100.0-thresh)/100,
+    params = {"conf_int"   : ci,
               "deflate"    : deflate,
               "method"     : method,
               "conv_int"   : conv_int,
               "conv_float" : conv_float,
               "debug"      : debug,
               "pchunk"     : pchunk}
+    paramstr = ""
+    for p in params:
+        paramstr += f"    {p:<12}: {params[p]}\n"
     if params["debug"]:
         print(f"Processing compression on file: \n"
               f"    {file}\n"
               f"with parameters: \n"
-              f"    {params}")
+              f"{paramstr[:-1]}")
     process(input_ds, output_ds, analysis, params)
 
 def main():
