@@ -1,5 +1,5 @@
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 cedaic_define_macros = [(
     "NPY_NO_DEPRECATED_API",
 )]
@@ -13,7 +13,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 setup(
     name='ceda_icompress',
     version='0.1.1',
-    packages=['ceda_icompress'],
+    packages=find_packages("./"),
     install_requires=[
         'numpy', 
         'netcdf4', 
