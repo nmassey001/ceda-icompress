@@ -183,10 +183,10 @@ outcome, but it is an experimental feature.
 Here is a quick example on JASMIN for CMIP6 data, showing the workflow.
 
 ```
-DIR=/badc/cmip6/data/CMIP6/CMIP/MOHC/HadGEM3-GC31-LL/piControl/r1i1p1f1/Amon/tas/gn/latest
-cic_analyse $DIR/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.nc -o analysis/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.cic -v tas -x 2 -D
-cic_display analysis/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.cic -r -i -k
-cic_compress $DIR/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.nc  -o compressed/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912_comp.nc -a analysis/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.cic -d 5 -c 0.99 -I -F -m bitshave -D
+>>> DIR=/badc/cmip6/data/CMIP6/CMIP/MOHC/HadGEM3-GC31-LL/piControl/r1i1p1f1/Amon/tas/gn/latest
+>>> cic_analyse $DIR/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.nc -o analysis/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.cic -v tas -x 2 -D
+>>> cic_display analysis/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.cic -r -i -k
+>>> cic_compress $DIR/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.nc  -o compressed/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912_comp.nc -a analysis/tas_Amon_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn_195001-204912.cic -d 5 -c 0.99 -I -F -m bitshave -D
 ```
 
 In this case the reduction of the file size is from 68MB to 12MB
