@@ -3,7 +3,6 @@ from setuptools import setup
 cedaic_define_macros = [(
     "NPY_NO_DEPRECATED_API",
 )]
-import numpy
 
 with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
     README = readme.read()
