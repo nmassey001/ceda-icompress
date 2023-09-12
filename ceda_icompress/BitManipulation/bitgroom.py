@@ -60,7 +60,6 @@ class BitGroom(BitManipulation):
         Ar = np.ma.bitwise_and(Av, self.mask)
         Ar = np.ma.bitwise_or(Ar, self.groom_mask)
 
-        ### REMEMBER TO MASK OFF THE ZEROS! ###
         # convert back to the original type
         Ar = Ar.view(dtype=A.dtype)
         return Ar

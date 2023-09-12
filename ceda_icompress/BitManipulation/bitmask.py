@@ -3,7 +3,6 @@ import numpy as np
 from ceda_icompress.BitManipulation.bitmasks import (
     get_sigexp_bitmask
 )
-from ceda_icompress.InfoMeasures.getsigmanexp import getsigmanexp
 from ceda_icompress.BitManipulation.bitmanip import (
     BitManipulation, BitManipulationError
 )
