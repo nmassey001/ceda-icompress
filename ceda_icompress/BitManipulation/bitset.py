@@ -34,6 +34,7 @@ class BitSet(BitManipulation):
         # for bitset, the mask is the bitwise logical not of the mask for
         # the bit shave
         self.mask = ~(bit_mask | man_mask)
+        self.method = "bitset"
 
     def process(self, A):
         """

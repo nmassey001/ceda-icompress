@@ -32,6 +32,7 @@ class BitShave(BitManipulation):
         # get the bit mask for the mantissa
         man_mask = get_man_bitmask(A.dtype, self.NSB)
         self.mask = bit_mask | man_mask
+        self.method = "bitshave"
 
     def process(self, A):
         """

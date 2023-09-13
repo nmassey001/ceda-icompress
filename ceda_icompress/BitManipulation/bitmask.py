@@ -68,6 +68,7 @@ class BitMask(BitManipulation):
         # add the sign and exponent mask
         bit_mask = get_sigexp_bitmask(A.dtype)
         self.mask |= bit_mask
+        self.method = "bitmask"
 
     def process(self, A):
         """

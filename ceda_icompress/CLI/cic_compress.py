@@ -4,7 +4,9 @@ from netCDF4 import Dataset
 import sys
 import json
 import numpy as np
+from datetime import datetime, timezone
 import time
+import os.path
 from ceda_icompress.CLI.cic_analyse import load_dataset
 from ceda_icompress.BitManipulation.bitshave import BitShave
 from ceda_icompress.BitManipulation.bitgroom import BitGroom
@@ -56,6 +58,9 @@ def create_output_var(input_var, output_group, params, bit_manipulate):
         fill_value = mv,
         chunk_cache = input_var.get_var_chunk_cache()[0]
     )
+    # copy the attributes from input_var to output_var
+    output_var.setncatts(input_var.__dict__)
+
     return output_var
 
 def process_var(input_var, output_group, analysis, params):
@@ -67,9 +72,6 @@ def process_var(input_var, output_group, analysis, params):
     output_var = create_output_var(
         input_var, output_group, params, bit_manipulate
     )
-
-    # copy the attributes from input_var to output_var
-    output_var.setncatts(input_var.__dict__)
     # bitshave / bitgroom the data if the variable is in the analysis file
     if (bit_manipulate):
         # get the variable analysis from the analysis dictionary
@@ -89,6 +91,22 @@ def process_var(input_var, output_group, analysis, params):
             method = BitSet(input_var, NSB, Va, params["conf_int"])
         elif params["method"] == "bitmask":
             method = BitMask(input_var, NSB, Va, params["conf_int"])
+
+        # add a description of the compression to the variable
+        atts = output_var.__dict__
+        atts["compression"] = (
+            f"ceda-icompress: keepbits: {method.NSB}, "
+            f"method: {method.method}, "
+            f"bitmask: {method.mask:<032b}."
+        )
+        # add to the history of the variable
+        nowtime = datetime.now().replace(microsecond=0).isoformat()
+        history = (f"{nowtime} altered by ceda-icompress: lossy compression.")
+        if "history" in atts:
+            atts["history"] += " " + history
+        else:
+            atts["history"] = history
+        output_var.setncatts(atts)
 
         if params["debug"]:
             print(
@@ -132,7 +150,8 @@ def process_var(input_var, output_group, analysis, params):
 def process_groups(input_group, output_group, analysis, params):
     # input_group might be a Dataset
     # copy the metadata
-    output_group.setncatts(input_group.__dict__)
+    atts = input_group.__dict__
+    output_group.setncatts(atts)
 
     # copy the dimensions
     for dim in input_group.dimensions:
@@ -184,6 +203,9 @@ def process(input_ds, output_ds, analysis, params):
 @click.argument("file", type=str)
 def compress(file, analysis_file, deflate, force, conv_int, conv_float,
              ci, method, output, debug, pchunk):
+    # convert the files to complete paths
+    file = os.path.abspath(file)
+    output = os.path.abspath(output)
     # Load the analysis file
     if analysis_file is None:
         print("Analysis file name not supplied")
@@ -232,7 +254,7 @@ def compress(file, analysis_file, deflate, force, conv_int, conv_float,
     try:
         analysis_input_file = analysis["file"]
         if analysis_input_file != file and not force:
-            print(f"Analysed file: {analysis_input_file}, does not match"
+            print(f"Analysed file: {analysis_input_file}, does not match "
                   f"file to be compressed: {file}")
             sys.exit(0)
     except KeyError:

@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 import time
 import numpy as np
+import os.path
 from ceda_icompress.InfoMeasures.bitcount import bitcount
 from ceda_icompress.InfoMeasures.bitinformation import bitinformation
 from ceda_icompress.InfoMeasures.getsigmanexp import getsigmanexp
@@ -145,7 +146,7 @@ def analyse(file, var, group, tstart, tend, level, axis, output, debug):
 
     analysis_dict = {"Analysis" : "BitInformation",
                      "date" : datetime.now().isoformat(),
-                     "file" : file,
+                     "file" : os.path.abspath(file),
                      "groups" : {},
                      "version" : CIC_FILE_FORMAT_VERSION,
                     }

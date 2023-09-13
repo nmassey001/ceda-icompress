@@ -40,6 +40,7 @@ class BitGroom(BitManipulation):
         # the groom mask is the alternating 0s and 1s AND-ed with the logical not
         # of the above mask
         self.groom_mask = get_bitgroom_bitmask(A.dtype) & ~self.mask
+        self.method = "bitgroom"
 
     def process(self, A):
         """
