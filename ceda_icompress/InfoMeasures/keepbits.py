@@ -4,19 +4,21 @@ from ceda_icompress.InfoMeasures.entropy import entropy
 def binom_confidence(n, ci):
     # create a normal distribution generator
     g = np.random.default_rng()
-    p = 0.5 + np.quantile(
-                g.normal(0,1.0,n), 1-(1-ci)/2
-              )/(2*np.sqrt(n))
-    # clamp to a max of 1.0
-    p = np.minimum([1.0], p)
-    return p
+    h = np.quantile(
+        g.standard_normal(n, dtype=np.float32), 
+        1-(1-ci) / 2
+    ) / (2*np.sqrt(n)) + 0.5
+
+    return h
 
 
 def free_entropy(n, ci):
     """Calculate the free entropy for the probability in a binomial distribution
     """
     p = binom_confidence(n, ci)
-    # calculate the free entropy of this distribution    
+    # clamp to a max of 1.0
+    p = np.minimum([1.0], p)
+    # calculate the free entropy of this distribution
     fe = 1.0 - entropy(np.array([p, 1-p]), 2)
     return fe
 
@@ -28,7 +30,7 @@ def keepbits(bi, manbit, elements, ci):
     elements : the number of (non-masked) elements in the array
     ci       : the confidence interval"""
 
-    # calculate the threshold from the shape and confidence interval
+    # calculate the threshold from the shape and confidence interval    
     # this is the free entropy of the probability of the binomial distribution 
     # see the methods section in Klower et al, 2021 for more details
     fe = free_entropy(elements, ci)

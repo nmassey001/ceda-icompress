@@ -6,7 +6,7 @@ from ceda_icompress.BitManipulation.bitmasks import (
 from ceda_icompress.BitManipulation.bitmanip import (
     BitManipulation, BitManipulationError
 )
-from ceda_icompress.InfoMeasures.keepbits import free_entropy
+from ceda_icompress.InfoMeasures.keepbits import free_entropy, binom_confidence
 
 class BitMask(BitManipulation):
     """Reduce the information content in an array by rounding down (quantising)
@@ -54,15 +54,14 @@ class BitMask(BitManipulation):
             raise BitManipulationError(
                 "No elements key in analysis data"
             )
-        elements = analysis["elements"]
+        elements = int(analysis["elements"])
         # see the keepbits function in Infomeasures.keepbits for more info
-        fe = free_entropy(elements, ci)
-        threshold = fe
+        threshold = binom_confidence(elements, ci) - 0.5
         # build the mask
         self.mask = 0
         self.NSB = 0
         for i in range(manbit[0], manbit[1]):
-            if bi[i] > threshold:
+            if bi[i] > threshold:           # significantly different to zero
                 self.mask |= (0b1 << i)
                 self.NSB += 1
         # add the sign and exponent mask

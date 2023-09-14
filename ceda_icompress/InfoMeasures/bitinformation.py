@@ -2,8 +2,6 @@ import numpy as np
 
 from ceda_icompress.InfoMeasures.bitcount import bitpaircount
 from ceda_icompress.InfoMeasures.signedexponent import signed_exponent
-from ceda_icompress.InfoMeasures.keepbits import binom_confidence, free_entropy
-from ceda_icompress.InfoMeasures.entropy import entropy
 
 def bitinformation(X, axis=0, convert_exponent=True, base=2):
     """Calculate the bitwise information content, as defined in Shannon
