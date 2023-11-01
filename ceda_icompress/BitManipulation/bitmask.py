@@ -56,7 +56,8 @@ class BitMask(BitManipulation):
             )
         elements = int(analysis["elements"])
         # see the keepbits function in Infomeasures.keepbits for more info
-        threshold = binom_confidence(elements, ci) - 0.5
+        #threshold = binom_confidence(elements, ci) - 0.5
+        threshold = free_entropy(elements, ci)
         # build the mask
         self.mask = 0
         self.NSB = 0

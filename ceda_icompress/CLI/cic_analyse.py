@@ -2,15 +2,11 @@
 import click
 from netCDF4 import Dataset
 import sys
-from datetime import datetime
 import json
-import time
-import numpy as np
-import os.path
-from ceda_icompress.InfoMeasures.bitcount import bitcount
+
 from ceda_icompress.InfoMeasures.bitinformation import bitinformation
 from ceda_icompress.InfoMeasures.getsigmanexp import getsigmanexp
-from ceda_icompress.CLI import CIC_FILE_FORMAT_VERSION
+from ceda_icompress.analyse import Analyse
 
 def load_dataset(file):
     try:
@@ -22,86 +18,6 @@ def load_dataset(file):
         print(e)
         sys.exit(0)
     return ds
-
-def get_groups(dataset, group):
-    if group is not None:
-        try:
-            grps = [dataset.groups[g] for g in group]
-        except KeyError as e:
-            print(f"Group(s) not found: {group}")
-            sys.exit(0)
-    else:
-        # get the groups
-        grps = [dataset.groups[g] for g in dataset.groups]
-        # append the dataset (which is derived from a group)
-        grps.append(dataset)
-    return grps
-
-def get_vars(grp, var):
-    if var is not None:
-        try:
-            vars = [grp.variables[v] for v in var]
-        except KeyError as e:
-            print(f"Variable(s) not found: {var} in group: {grp.name}")
-            sys.exit(0)
-    else:
-        vars = [grp.variables[v] for v in grp.variables]
-    return vars
-
-def analyse_var(var, tstart, tend, level, axis, debug=False):
-    """Analyse the variable to get the bitcount and the bitinformation"""
-    # return dictionary
-    var_dict = {}
-    # form the index / slice
-    s = []
-
-    for d in var.dimensions:
-        if d == "time" or d == "t":
-            s.append(slice(tstart,tend))
-        elif "lev" in d and level is not None:
-            ls = level
-            le = ls + 1
-            s.append(slice(ls,le))
-        else:
-            s.append(slice(None))
-    if len(s) == 0:
-        s = 0
-    elif len(s) == 1:
-        s = s[0]
-    
-    data = var[s]
-
-    if debug:
-        print(f"Analysing variable {var.name}, with shape: {data.shape}")
-
-    # right shift on 64 bit numbers & python types not supported by numpy
-    if data.dtype in [np.uint64, np.int64, np.float64, '<f8', '>f8', float, int]:
-        print(f"    variable {var.name} is 64 bit and compression is not "
-               "currently supported")
-        return var_dict # empty var dict
-
-    # get the bit information
-    st = time.time()
-    bi = bitinformation(data, axis)
-    ed = time.time()
-    if debug:
-        print("    Bit information time taken: ", ed-st)
-    # get the sign, exponent and mantissa bits
-    sig, man, exp = getsigmanexp(data.dtype)
-    var_dict["time_start"] = tstart
-    var_dict["time_end"] = tend
-    var_dict["level"] = level
-    var_dict["axis"] = axis
-    var_dict["elements"] = int(data.count())
-    var_dict["type"] = data.dtype.name
-    var_dict["itemsize"] = data.dtype.itemsize          # bits
-    var_dict["byteorder"] = data.dtype.byteorder
-    var_dict["signbit"] = sig
-    var_dict["manbit"] = man
-    var_dict["expbit"] = exp
-    var_dict["bitinfo"] = bi.tolist()
-    return var_dict
-
 
 @click.command(
     help="Analyse the netCDF file to determine compression settings."
@@ -138,32 +54,31 @@ def analyse(file, var, group, tstart, tend, level, axis, output, debug):
 
     # Load the netCDF4 file from the file argument
     ds = load_dataset(file)
+
+    # Get the groups and vars to analyse from the command line arguments
     if group is not None:
         group = group.split(",")
     if var is not None:
         var = var.split(",")
-    grps = get_groups(ds, group)
 
-    analysis_dict = {"Analysis" : "BitInformation",
-                     "date" : datetime.now().isoformat(),
-                     "file" : os.path.abspath(file),
-                     "groups" : {},
-                     "version" : CIC_FILE_FORMAT_VERSION,
-                    }
-    for g in grps:
-        grp_dict = {"vars" : {}}
-        vars = get_vars(g, var)
-        for v in vars:
-            var_dict = analyse_var(v, tstart, tend, level, axis, debug)
-            if var_dict != {}:
-                grp_dict["vars"][v.name] = var_dict
-        analysis_dict["groups"][g.name] = grp_dict
-    
-    # write to file
+    # create the analysis object and set the operating parameters
+    analysis = Analyse()
+    analysis.time_start = tstart
+    analysis.time_end = tend
+    analysis.axis = axis
+    analysis.level = level
+
+    # debug level
+    analysis.debug = debug
+
+    # perform the analysis, on the selected groups and variables
+    analysis_dict = analysis.from_dataset(ds, group, var)
+
+    # write to file if output chosen
     if output:
         json.dump(analysis_dict, fh)
         fh.close()
-        if debug:
+        if analysis.debug:
             print(f"Output analysis file written: {output}")
     else:
         print(analysis_dict)
