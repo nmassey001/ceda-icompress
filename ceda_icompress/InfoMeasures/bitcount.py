@@ -1,6 +1,7 @@
 import numpy as np
 try:
     import dask
+    import dask.array as da
     use_thread = True
 except ImportError:
     use_thread = False
@@ -38,9 +39,9 @@ def bitcount(A):
         # define the mask based on the datatype
         mask = t_uint(0b1) << b
         # mask with the whole array
-        Ar = np.ma.bitwise_and(Av, mask)
+        Av = np.ma.bitwise_and(Av, mask)
         # count
-        N[b] = np.count_nonzero(Ar)
+        N[b] = np.count_nonzero(Av)
     return N
 
 
@@ -49,18 +50,18 @@ def __count_bit(Av, Bv, b, t_uint):
     # position mask for this bit
     b_mask = t_uint(0b1) << b
     # get the bit for A
-    Ar = np.ma.bitwise_and(Av, b_mask)
+    Av = np.ma.bitwise_and(Av, b_mask)
     # get the bit for B
-    Br = np.ma.bitwise_and(Bv, b_mask)
+    Bv = np.ma.bitwise_and(Bv, b_mask)
     # shift back for each array, A by b-1, B by b
     # this forms the pairs when A + B
-    Ab = np.ma.right_shift(Ar, b-1)
-    Bb = np.ma.right_shift(Br, b)
-    bitpair = np.ma.bitwise_or(Ab, Bb)
+    Av = np.ma.right_shift(Av, b-1)
+    Bv = np.ma.right_shift(Bv, b)
+    Av = np.ma.bitwise_or(Av, Bv)
     # count up the bit pairs
     N = np.zeros((4,), dtype=np.int64) # count array
     for m in np.arange(0, 4, dtype=np.int32):
-        N[m] = np.count_nonzero(bitpair == m)
+        N[m] = np.count_nonzero(Av == m)
     return N
 
 
@@ -108,7 +109,7 @@ def bitpaircount(A, B, threads=1):
             N[:,b] = __count_bit(Av, Bv, b, t_uint)
     else:
         # use Dask to run threads in parallel
-        # set up the parameters first
+        # set up the processes first
         P = []
         for b in NB:
             # use Dask delayed to set up the computation

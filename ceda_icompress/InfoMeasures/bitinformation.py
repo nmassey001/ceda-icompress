@@ -54,10 +54,10 @@ def bitinformation(X, axis=0, convert_exponent=True, base=2, threads=1):
     C = bitpaircount(A, B, threads)
     # probability mass function of the bitpairs
     P = C.astype(np.float64) / B.count()
-    Pm = np.ma.masked_equal(P, 0.0)
+    P = np.ma.masked_equal(P, 0.0)
     # conditional probabilities
-    Pr = np.ma.sum(Pm, axis=0)[np.newaxis, ...]
-    Ps = np.ma.sum(Pm, axis=1)[:, np.newaxis,...]
+    Pr = np.ma.sum(P, axis=0)[np.newaxis, ...]
+    Ps = np.ma.sum(P, axis=1)[:, np.newaxis,...]
     # mutual information
-    M = np.ma.sum(Pm * np.ma.log(Pm / (Ps * Pr)), axis=(0,1)) / np.ma.log(base)
+    M = np.ma.sum(P * np.ma.log(P / (Ps * Pr)), axis=(0,1)) / np.ma.log(base)
     return M
