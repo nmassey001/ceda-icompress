@@ -8,6 +8,12 @@ from ceda_icompress.InfoMeasures.bitinformation import bitinformation
 from ceda_icompress.InfoMeasures.getsigmanexp import getsigmanexp
 from ceda_icompress.CLI import CIC_FILE_FORMAT_VERSION
 
+try:
+    import dask
+    use_threads = True
+except ImportError:
+    use_threads = False
+
 class Analyse:
     """Encapsulated methods for analysing a netCDF file, netCDF variable or
     Numpy array to determine the information content and produce an analysis
@@ -223,4 +229,7 @@ class Analyse:
         return self._threads
     @debug.setter
     def threads(self, val):
-        self._threads = val
+        if use_threads:
+            self._threads = val
+        else:
+            self._threads = 1
