@@ -26,7 +26,7 @@ def load_dataset(file):
               help="Variable in netCDF file to analyse")
 @click.option("-g", "--group", default=None, type=str,
               help="Group in netCDF file to analyse")
-@click.option("-t", "--tstart", default=None, type=int,
+@click.option("-s", "--tstart", default=None, type=int,
               help="Timestep to start analysis at")
 @click.option("-e", "--tend", default=None, type=int,
               help="Timestep to end analysis at")
@@ -36,10 +36,12 @@ def load_dataset(file):
               help="Axis number to analyse")
 @click.option("-o", "--output", default=None, type=str,
               help="Output file name")
+@click.option("-t", "--threads", default=1, type=int,
+               help="Number of threads to use in computing the analysis")
 @click.option("-D", "--debug", default=False, is_flag=True,
               help="Provide debug info")
 @click.argument("file", type=str)
-def analyse(file, var, group, tstart, tend, level, axis, output, debug):
+def analyse(file, var, group, tstart, tend, level, axis, output, threads, debug):
     # open the output file - do this before the processing so an error in 
     # created before the (long) processing time if the exceptions are caught
     if output:
@@ -67,6 +69,9 @@ def analyse(file, var, group, tstart, tend, level, axis, output, debug):
     analysis.time_end = tend
     analysis.axis = axis
     analysis.level = level
+
+    # number of threads to use
+    analysis.threads = threads
 
     # debug level
     analysis.debug = debug

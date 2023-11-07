@@ -19,6 +19,7 @@ class Analyse:
         self._axis = None
         self._level = None
         self._debug = False
+        self._threads = 1
 
     
     def from_dataset(self, dataset, groups=None, vars=None):
@@ -34,7 +35,7 @@ class Analyse:
             (Dict) : Dataset information dictionary
         """
         # Determine which subset of groups to work on
-        if groups is  None:
+        if groups is None:
             # get all the groups in the dataset
             grps = [dataset.groups[g] for g in dataset.groups]
             # append the dataset (which is derived from a group)
@@ -51,7 +52,7 @@ class Analyse:
         analysis_dict = {
             "Analysis" : "BitInformation",
             "date" : datetime.now().isoformat(),
-            "file" : os.path.abspath(dataset.title),
+            "file" : os.path.abspath(dataset.filepath()),
             "groups" : {},
             "version" : CIC_FILE_FORMAT_VERSION,
         }
@@ -167,9 +168,11 @@ class Analyse:
             (Dict) : bitinformation dictionary
         """
         if self._debug:
+            print(f"    Computing bit information with {self._threads} threads")
+        if self._debug:
             st = time.time()
         # get the bit information / carry out the analysis
-        bi = bitinformation(array, self.axis)
+        bi = bitinformation(array, self.axis, threads=self._threads)
         if self._debug:
             ed = time.time()
             print("    Bit information time taken: ", ed-st)
@@ -214,3 +217,10 @@ class Analyse:
     @debug.setter
     def debug(self, val):
         self._debug = val
+
+    @property
+    def threads(self):
+        return self._threads
+    @debug.setter
+    def threads(self, val):
+        self._threads = val

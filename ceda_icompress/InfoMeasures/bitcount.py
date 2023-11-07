@@ -1,4 +1,9 @@
 import numpy as np
+try:
+    import dask
+    use_thread = True
+except ImportError:
+    use_thread = False
 
 from ceda_icompress.InfoMeasures.whichUint import whichUint
 
@@ -39,7 +44,27 @@ def bitcount(A):
     return N
 
 
-def bitpaircount(A, B):
+def __count_bit(Av, Bv, b, t_uint):
+    """Deconstruct part of the bitpaircount so it can be computed in parallel"""
+    # position mask for this bit
+    b_mask = t_uint(0b1) << b
+    # get the bit for A
+    Ar = np.ma.bitwise_and(Av, b_mask)
+    # get the bit for B
+    Br = np.ma.bitwise_and(Bv, b_mask)
+    # shift back for each array, A by b-1, B by b
+    # this forms the pairs when A + B
+    Ab = np.ma.right_shift(Ar, b-1)
+    Bb = np.ma.right_shift(Br, b)
+    bitpair = np.ma.bitwise_or(Ab, Bb)
+    # count up the bit pairs
+    N = np.zeros((4,), dtype=np.int64) # count array
+    for m in np.arange(0, 4, dtype=np.int32):
+        N[m] = np.count_nonzero(bitpair == m)
+    return N
+
+
+def bitpaircount(A, B, threads=1):
     """Calculate the number of times that bitpairs occur at each bit position in
     the input array (A) compared to the array (B).
     The bit pairs are: 00, 01, 10, 11
@@ -73,23 +98,27 @@ def bitpaircount(A, B):
     # using view before a slice means that the array is not copied
     Av = A.view(dtype=t_uint).flatten()
     Bv = B.view(dtype=t_uint).flatten()
+ 
+    # array with bits in order 0 to n_bits-1
+    NB = np.arange(0, n_bits, dtype=t_uint)
+    # count the bits in each position of the array
+    if threads == 1 or not use_thread:
+        # single thread version
+        for b in NB:
+            N[:,b] = __count_bit(Av, Bv, b, t_uint)
+    else:
+        # use Dask to run threads in parallel
+        # set up the parameters first
+        P = []
+        for b in NB:
+            # use Dask delayed to set up the computation
+            P.append(dask.delayed(__count_bit)(Av, Bv, b, t_uint))
+        # compute in parallel
+        R = dask.compute(*P, scheduler='threads', num_workers=threads)
+        # retrieve the results
+        for b in NB:
+            N[:,b] = R[b]
 
-    # count the bits in the position of each array
-    for b in np.arange(0, n_bits, dtype=t_uint):
-        # position mask for this bit
-        b_mask = t_uint(0b1) << b
-        # get the bit for A
-        Ar = np.ma.bitwise_and(Av, b_mask)
-        # get the bit for B
-        Br = np.ma.bitwise_and(Bv, b_mask)
-        # shift back for each array, A by b-1, B by b
-        # this forms the pairs when A + B
-        Ab = np.ma.right_shift(Ar, b-1)
-        Bb = np.ma.right_shift(Br, b)
-        bitpair = np.ma.bitwise_or(Ab, Bb)
-        # count up the bit pairs
-        for m in np.arange(0, 4, dtype=np.int32):
-            N[m, b] += np.count_nonzero(bitpair == m)
     # reshape the array to 2x2
     N = N.reshape((2,2,n_bits))
     return N
