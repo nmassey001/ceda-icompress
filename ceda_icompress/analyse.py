@@ -138,8 +138,7 @@ class Analyse:
         if data.dtype in [
             np.uint64, np.int64, np.float64, '<f8', '>f8', float, int
         ]:
-            # NRM - TODO - define a better exception than this!
-            raise Exception(
+            raise TypeError(
                 f"Variable {variable.name} is 64 bit and analysis is not "
                 "currently supported for 64 bit numbers."
             )

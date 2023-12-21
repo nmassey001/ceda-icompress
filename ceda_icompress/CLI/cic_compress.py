@@ -3,175 +3,72 @@ import click
 from netCDF4 import Dataset
 import sys
 import json
-import numpy as np
-from datetime import datetime, timezone
-import time
 import os.path
 from ceda_icompress.CLI.cic_analyse import load_dataset
-from ceda_icompress.BitManipulation.bitshave import BitShave
-from ceda_icompress.BitManipulation.bitgroom import BitGroom
-from ceda_icompress.BitManipulation.bitset import BitSet
-from ceda_icompress.BitManipulation.bitmask import BitMask
+
 from ceda_icompress.CLI import CIC_FILE_FORMAT_VERSION
+
+from ceda_icompress.compress import Compress
 
 COMPRESSION = 'zlib'
 
-def copy_dim(input_dim, output_group):
-    output_dim = output_group.createDimension(
-        dimname = input_dim.name, 
-        size = input_dim.size
-    )
-
-def create_output_var(input_var, output_group, params, bit_manipulate):
-    # get the fill value
+def load_analysis(analysis_file, input_file_name, force):
+    if analysis_file is None:
+        print("Analysis file name not supplied")
+        sys.exit(0)
+    # Load the analysis file
     try:
-        mv = input_var.getncattr("_FillValue")
-    except AttributeError:
-        mv = None
-    # determine the chunking
-    if input_var.chunking() == 'contiguous':
-         chunking = None
-    else:
-         chunking = input_var.chunking()
-    chunking = None
+        fh = open(analysis_file, "r")
+    except FileNotFoundError:
+        print(f"Analysis file cannot be found: {str(analysis_file)}")
+        sys.exit(0)
+    # Parse the analysis file
+    try:
+        analysis = json.load(fh)
+    except Exception as e:
+        print(f"Analysis file cannot be parsed: {str(analysis_file)}, reason: {e}")
+        sys.exit(0)
 
-    # what type should we use? If we aren't manipulating the bits then check
-    # whether we can convert a float64 to float32 or int64 to int32
-    var_type = input_var.dtype
-
-    if not bit_manipulate:
-        if input_var.dtype == np.int64 and params["conv_int"]:
-            var_type = np.int32
-        elif input_var.dtype == np.float64 and params["conv_float"]:
-            var_type = np.float32
-
-    # create the output variable
-    output_var = output_group.createVariable(
-        varname = input_var.name,
-        datatype = var_type, 
-        dimensions = input_var.dimensions,
-        compression = COMPRESSION,
-        complevel = params["deflate"],
-        contiguous = False,
-        chunksizes = chunking,
-        endian = input_var.endian(),
-        fill_value = mv,
-        chunk_cache = input_var.get_var_chunk_cache()[0]
+    # check that the version matches
+    version_err_msg = (
+        f"Version of file: {analysis_file} does not match current version:"
+        f" {CIC_FILE_FORMAT_VERSION}.  Please recalculate analysis."
     )
-    # copy the attributes from input_var to output_var
-    output_var.setncatts(input_var.__dict__)
+    try:
+        version = analysis["version"]
+        if version != CIC_FILE_FORMAT_VERSION:
+            print(version_err_msg)
+            sys.exit(0)
+    except KeyError:
+        print(version_err_msg)
+        sys.exit(0)
 
-    return output_var
+    # check that the name of the file in the analysis file matches the name of
+    # the input file
+    try:
+        analysis_input_file = analysis["file"]
+        if analysis_input_file != input_file_name and not force:
+            print(f"Analysed file: {analysis_input_file}, does not match "
+                  f"file to be compressed: {input_file_name}")
+            sys.exit(0)
+    except KeyError:
+        print(f"Could not find file key in analysis file: {str(analysis_file)}")
+        sys.exit(0)
 
-def process_var(input_var, output_group, analysis, params):
-    # are we going to manipulate the bits?
-    bit_manipulate = (output_group.name in analysis["groups"] and 
-        input_var.name in analysis["groups"][output_group.name]["vars"])
+    return analysis
 
-    # create the var
-    output_var = create_output_var(
-        input_var, output_group, params, bit_manipulate
-    )
-    # bitshave / bitgroom the data if the variable is in the analysis file
-    if (bit_manipulate):
-        # get the variable analysis from the analysis dictionary
-        Va = analysis["groups"][output_group.name]["vars"][input_var.name]
-        # check to see if number of bits to retain are enforced?
-        if "retainbits" in Va:
-            NSB = Va["retainbits"]
-        else:
-            NSB = -1
 
-        # get a pointer to the function to use
-        if params["method"] == "bitshave":
-            method = BitShave(input_var, NSB, Va, params["conf_int"])
-        elif params["method"] == "bitgroom":
-            method = BitGroom(input_var, NSB, Va, params["conf_int"])
-        elif params["method"] == "bitset":
-            method = BitSet(input_var, NSB, Va, params["conf_int"])
-        elif params["method"] == "bitmask":
-            method = BitMask(input_var, NSB, Va, params["conf_int"])
-
-        # add a description of the compression to the variable
-        atts = output_var.__dict__
-        atts["compression"] = (
-            f"ceda-icompress: keepbits: {method.NSB}, "
-            f"method: {method.method}, "
-            f"bitmask: {method.mask:<032b}."
-        )
-        # add to the history of the variable
-        nowtime = datetime.now().replace(microsecond=0).isoformat()
-        history = (f"{nowtime} altered by ceda-icompress: lossy compression.")
-        if "history" in atts:
-            atts["history"] += " " + history
-        else:
-            atts["history"] = history
-        output_var.setncatts(atts)
-
-        if params["debug"]:
-            print(
-                f"Processing variable: {input_var.name}\n"
-                f"    Retained bits  : {method.NSB}\n"
-                f"    Bitmask        : {method.mask:<032b}"
-            )
-        st = time.time()
-        # do each individual timestep to prevent memory swapping
-        t_dim = -1
-        s = []
-        dc = 0
-        for d in input_var.dimensions:
-            dim = output_group.dimensions[d]
-            if d == "time" or d == "t":
-                t_dim = dc
-                t_len = dim.size
-                # create the slices
-                s.append(slice(0,1,1))
-            else:
-                s.append(slice(0,dim.size,1))
-            dc += 1
-
-        pc = params["pchunk"]
-        if t_dim == -1:
-            # copy the data from input_var to output_var, doing the bitshave or bitgroom
-            # no time dimension so do all the variable at once
-            output_var[:] = method.process(input_var[:])
-        else:
-            for t in range(0, t_len, pc):
-                # modify the slice for the time dimensions
-                s[t_dim] = slice(t,t+pc,1)
-                output_var[s] = method.process(input_var[s])
-        ed = time.time()
-        if params["debug"]:
-            print("    Time taken     :", ed-st)
+def open_output_dataset(output, deflate):
+    if output is None:
+        print("Output file name not supplied")
+        sys.exit(0)
     else:
-        output_var[:] = input_var[:]
-
-
-def process_groups(input_group, output_group, analysis, params):
-    # input_group might be a Dataset
-    # copy the metadata
-    atts = input_group.__dict__
-    output_group.setncatts(atts)
-
-    # copy the dimensions
-    for dim in input_group.dimensions:
-        copy_dim(input_group.dimensions[dim], output_group)
-    # copy the variables
-    for var in input_group.variables:
-        process_var(
-            input_group.variables[var], output_group, analysis, params
-        )
-    # copy all the groups belonging to this group recursively
-    for grp in input_group.groups:
-        new_group = output_group.createGroup(grp.name)
-        process_groups(input_group.groups[grp], new_group, analysis, params)
-
-
-def process(input_ds, output_ds, analysis, params):
-    """Process the input dataset, using the analysis, writing to the output_ds"""
-    # first copy all the groups, variables and metadata
-    process_groups(input_ds, output_ds, analysis, params)
-    output_ds.close()
+        try:
+            output_ds = Dataset(output, "w", deflate=deflate, format="NETCDF4")
+        except Exception as e:
+            print(f"Could not open output file {str(output)}, reason: {e}")
+            sys.exit(0)
+    return output_ds
 
 
 @click.command(
@@ -203,65 +100,16 @@ def process(input_ds, output_ds, analysis, params):
 @click.argument("file", type=str)
 def compress(file, analysis_file, deflate, force, conv_int, conv_float,
              ci, method, output, debug, pchunk):
-    # convert the files to complete paths
+    # open the input file - convert to absolute path first
     file = os.path.abspath(file)
-    output = os.path.abspath(output)
-    # Load the analysis file
-    if analysis_file is None:
-        print("Analysis file name not supplied")
-        sys.exit(0)
-    # Load the analysis file
-    try:
-        fh = open(analysis_file, "r")
-    except FileNotFoundError:
-        print(f"Analysis file cannot be found: {str(analysis_file)}")
-        sys.exit(0)
-    # Parse the analysis file
-    try:
-        analysis = json.load(fh)
-    except Exception as e:
-        print(f"Analysis file cannot be parsed: {str(analysis_file)}, reason: {e}")
-        sys.exit(0)
-
-    # check that the version matches
-    version_err_msg = (
-        f"Version of file: {analysis_file} does not match current version:"
-        f" {CIC_FILE_FORMAT_VERSION}.  Please recalculate analysis."
-    )
-    try:
-        version = analysis["version"]
-        if version != CIC_FILE_FORMAT_VERSION:
-            print(version_err_msg)
-            sys.exit(0)
-    except KeyError:
-        print(version_err_msg)
-        sys.exit(0)
+    input_ds = load_dataset(file)
 
     # open the output file - do this before the processing so an error in 
     # created before the (long) processing time if the exceptions are caught
-    if output is None:
-        print("Output file name not supplied")
-        sys.exit(0)
-    else:
-        try:
-            output_ds = Dataset(output, "w", deflate=deflate, format="NETCDF4")
-        except Exception as e:
-            print(f"Could not open output file {str(output)}, reason: {e}")
-            sys.exit(0)
+    output = os.path.abspath(output)
+    output_ds = open_output_dataset(output, deflate)
 
-    # check that the name of the file in the analysis file matches the name of
-    # the input file
-    try:
-        analysis_input_file = analysis["file"]
-        if analysis_input_file != file and not force:
-            print(f"Analysed file: {analysis_input_file}, does not match "
-                  f"file to be compressed: {file}")
-            sys.exit(0)
-    except KeyError:
-        print(f"Could not find file key in analysis file: {str(analysis_file)}")
-        sys.exit(0)
-
-    # get the bit manipulation method
+    # check the bit manipulation method
     if method not in ["bitshave", "bitgroom", "bitset", "bitmask"]:
         print(f"Unknown bit manipulation method: {method}")
         sys.exit(0)
@@ -271,26 +119,26 @@ def compress(file, analysis_file, deflate, force, conv_int, conv_float,
         print("Input and output file are the same")
         sys.exit(0)
 
+    # create the compression object
+    process = Compress()
 
-    # open the input file
-    input_ds = load_dataset(file)
-    # process it, along with the analysis]
-    params = {"conf_int"   : ci,
-              "deflate"    : deflate,
-              "method"     : method,
-              "conv_int"   : conv_int,
-              "conv_float" : conv_float,
-              "debug"      : debug,
-              "pchunk"     : pchunk}
-    paramstr = ""
-    for p in params:
-        paramstr += f"    {p:<12}: {params[p]}\n"
-    if params["debug"]:
-        print(f"Processing compression on file: \n"
-              f"    {file}\n"
-              f"with parameters: \n"
-              f"{paramstr[:-1]}")
-    process(input_ds, output_ds, analysis, params)
+    # Load the analysis file
+    process.analysis = load_analysis(analysis_file, file, force)
+
+    # process it, according to the analysis
+    process.ci = ci
+    process.deflate = deflate
+    process.method = method
+    process.conv_int = conv_int
+    process.conv_float = conv_float
+    process.debug = debug
+    process.pchunk = pchunk
+
+    process.compress_dataset(input_ds, output_ds)
+
+    # close the files to finish
+    input_ds.close()
+    output_ds.close()
 
 def main():
     compress()
